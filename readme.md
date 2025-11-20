@@ -6,7 +6,7 @@
 
 Version 0.1 | Proof of Concept
 
-*Powered by AI • Works Offline • GPU Accelerated*
+*Powered by AI (Build with Kiro https://kiro.dev/ ) • Works Offline • GPU Accelerated*
 
 </div>
 
@@ -1142,3 +1142,4 @@ See LICENSE file for details.
 **For complete documentation, see**: `readme_docs.md`
 
 </div>
+
