@@ -1,0 +1,391 @@
+MIT License
+
+Copyright (c) 2025 OptikR Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+
+PROJECT PHILOSOPHY
+
+OptikR is a community-driven, open-source project built with the following values:
+
+FREEDOM & ACCESSIBILITY
+- Free to use for any purpose (personal, educational, commercial)
+- No paywalls, no subscriptions, no artificial limits
+- Source code available for learning and improvement
+- Community contributions welcome and encouraged
+
+TRANSPARENCY
+- All code is open and auditable
+- Development process is transparent
+- Issues and fixes are documented
+- Community feedback shapes the project
+
+ATTRIBUTION
+- If you use OptikR in your project, a mention would be appreciated (but not required)
+- If you improve OptikR, consider contributing back to help others
+- Share your dictionaries, plugins, and translations with the community
+
+COMMUNITY FIRST
+- Built by the community, for the community
+- No corporate ownership or control
+- User needs come first, not profit
+- Everyone can contribute, regardless of skill level
+
+================================================================================
+
+WHAT THIS MEANS FOR YOU
+
+✅ You CAN:
+- Use OptikR for free, forever
+- Use it for personal projects
+- Use it for commercial projects
+- Modify the code for your needs
+- Distribute your modified versions
+- Create plugins and extensions
+- Share dictionaries and translations
+- Learn from the code
+- Fork the project
+
+✅ You DON'T HAVE TO:
+- Pay anything
+- Ask for permission
+- Provide attribution (but it's appreciated!)
+- Share your modifications (but it helps the community!)
+- Contribute back (but we'd love it if you do!)
+
+⚠️ You SHOULD:
+- Respect the licenses of third-party components (see below)
+- Be a good community member
+- Help others when you can
+- Report bugs and suggest improvements
+- Share your improvements if possible
+
+❌ You CANNOT:
+- Remove copyright notices
+- Claim you created OptikR
+- Hold the authors liable for any issues
+
+================================================================================
+
+THIRD-PARTY COMPONENTS
+
+This software includes the following third-party components with their respective licenses:
+
+GUI FRAMEWORK
+-------------
+1. PyQt6 - GPL-3.0 License
+   Copyright (C) Riverbank Computing Limited
+   https://www.riverbankcomputing.com/software/pyqt/
+   Used for: User interface, dialogs, settings tabs, overlay system
+
+DEEP LEARNING & AI
+------------------
+2. PyTorch - BSD-3-Clause License
+   Copyright (c) 2016-2024 Facebook, Inc (Meta Platforms)
+   https://github.com/pytorch/pytorch
+   Used for: Neural network inference, GPU acceleration
+
+3. Transformers - Apache License 2.0
+   Copyright (c) 2018-2024 The Hugging Face team
+   https://github.com/huggingface/transformers
+   Used for: Loading and running translation models
+
+OCR ENGINES
+-----------
+4. EasyOCR - Apache License 2.0
+   Copyright (c) 2020 JaidedAI
+   https://github.com/JaidedAI/EasyOCR
+   Used for: Multi-language text recognition
+
+5. PaddleOCR - Apache License 2.0
+   Copyright (c) 2020 PaddlePaddle Authors
+   https://github.com/PaddlePaddle/PaddleOCR
+   Used for: High-accuracy Chinese/multilingual OCR
+
+6. Manga OCR - Apache License 2.0
+   Copyright (c) 2021 Maciej Budyś
+   https://github.com/kha-white/manga-ocr
+   Used for: Japanese manga text recognition
+
+7. Tesseract OCR - Apache License 2.0
+   Copyright (c) 2006-2024 Google Inc.
+   https://github.com/tesseract-ocr/tesseract
+   Used for: Fast text recognition (via pytesseract wrapper)
+
+TRANSLATION ENGINES
+-------------------
+8. MarianMT Models - MIT License
+   Copyright (c) 2019 Helsinki-NLP
+   https://github.com/Helsinki-NLP/Opus-MT
+   Used for: Local neural machine translation
+
+9. DeepL API - Proprietary (API access)
+   Copyright (c) DeepL SE
+   https://www.deepl.com/
+   Used for: High-quality cloud translation (optional, requires API key)
+
+10. Google Cloud Translation API - Proprietary (API access)
+    Copyright (c) Google LLC
+    https://cloud.google.com/translate
+    Used for: Cloud translation services (optional, requires API key)
+
+11. Google Translate (Free) - Fair Use
+    Copyright (c) Google LLC
+    https://translate.google.com/
+    Used for: Free translation service (no API key required)
+
+AUDIO PROCESSING (Hidden Feature)
+----------------------------------
+12. OpenAI Whisper - MIT License
+    Copyright (c) 2022 OpenAI
+    https://github.com/openai/whisper
+    Used for: Real-time audio transcription (optional plugin)
+
+13. PyAudio - MIT License
+    Copyright (c) 2006 Hubert Pham
+    https://people.csail.mit.edu/hubert/pyaudio/
+    Used for: Audio capture and playback (optional)
+
+14. pyttsx3 - Mozilla Public License 2.0
+    Copyright (c) 2014 Natesh M Bhat
+    https://github.com/nateshmbhat/pyttsx3
+    Used for: Text-to-speech synthesis (optional)
+
+IMAGE PROCESSING
+----------------
+15. OpenCV - Apache License 2.0
+    Copyright (c) 2000-2024 Intel Corporation, Willow Garage, Itseez
+    https://opencv.org/
+    Used for: Image preprocessing, enhancement, manipulation
+
+16. Pillow (PIL Fork) - HPND License
+    Copyright (c) 1997-2011 Secret Labs AB
+    Copyright (c) 1995-2011 Fredrik Lundh
+    Copyright (c) 2010-2024 Alex Clark and Contributors
+    https://python-pillow.org/
+   Used for: Image loading, saving, format conversion
+
+17. NumPy - BSD-3-Clause License
+    Copyright (c) 2005-2024 NumPy Developers
+    https://numpy.org/
+    Used for: Array operations, numerical computing
+
+18. SciPy - BSD-3-Clause License
+    Copyright (c) 2001-2024 SciPy Developers
+    https://scipy.org/
+    Used for: Scientific computing, image processing
+
+19. scikit-image - BSD-3-Clause License
+    Copyright (c) 2009-2024 scikit-image team
+    https://scikit-image.org/
+    Used for: Advanced image processing algorithms
+
+SCREEN CAPTURE
+--------------
+20. dxcam - MIT License
+    Copyright (c) 2022 ra1nty
+    https://github.com/ra1nty/DXcam
+    Used for: DirectX-based screen capture (GPU-accelerated)
+
+21. mss - MIT License
+    Copyright (c) 2013-2024 BoboTiG
+    https://github.com/BoboTiG/python-mss
+    Used for: Cross-platform screenshot capture
+
+22. PyAutoGUI - BSD-3-Clause License
+    Copyright (c) 2014 Al Sweigart
+    https://github.com/asweigart/pyautogui
+    Used for: Screen interaction utilities
+
+SYSTEM UTILITIES
+----------------
+23. psutil - BSD-3-Clause License
+    Copyright (c) 2009 Jay Loden, Dave Daeschler, Giampaolo Rodola
+    https://github.com/giampaolo/psutil
+    Used for: System monitoring (CPU, memory, GPU usage)
+
+24. GPUtil - MIT License
+    Copyright (c) 2018 Anders Krogh Mortensen
+    https://github.com/anderskm/gputil
+    Used for: GPU monitoring and statistics
+
+25. pywin32 - Python Software Foundation License
+    Copyright (c) 1994-2024 Mark Hammond
+    https://github.com/mhammond/pywin32
+    Used for: Windows API access, system integration
+
+26. pystray - LGPL-3.0 License
+    Copyright (c) 2016-2024 Moses Palmér
+    https://github.com/moses-palmer/pystray
+    Used for: System tray icon functionality
+
+TEXT PROCESSING
+---------------
+27. textdistance - MIT License
+    Copyright (c) 2017-2024 @orsinium
+    https://github.com/life4/textdistance
+    Used for: Text similarity calculations
+
+28. pyspellchecker - MIT License
+    Copyright (c) 2017-2024 Tyler Barrus
+    https://github.com/barrust/pyspellchecker
+    Used for: Spell checking and correction
+
+NETWORKING & SECURITY
+---------------------
+29. requests - Apache License 2.0
+    Copyright (c) 2019 Kenneth Reitz
+    https://github.com/psf/requests
+    Used for: HTTP requests to translation APIs
+
+30. cryptography - Apache License 2.0 / BSD-3-Clause
+    Copyright (c) 2013-2024 Individual contributors
+    https://github.com/pyca/cryptography
+    Used for: API key encryption and secure storage
+
+CONFIGURATION & DATA
+--------------------
+31. PyYAML - MIT License
+    Copyright (c) 2017-2024 Ingy döt Net, Kirill Simonov
+    https://github.com/yaml/pyyaml
+    Used for: Configuration file parsing
+
+32. python-dotenv - BSD-3-Clause License
+    Copyright (c) 2014 Saurabh Kumar
+    https://github.com/theskumar/python-dotenv
+    Used for: Environment variable management
+
+ADDITIONAL LIBRARIES
+--------------------
+33. sentencepiece - Apache License 2.0
+    Copyright (c) 2018 Google Inc.
+    https://github.com/google/sentencepiece
+    Used for: Text tokenization for translation models
+
+34. sacremoses - LGPL-2.1 License
+    Copyright (c) 2019 Tom Aarsen
+    https://github.com/alvations/sacremoses
+    Used for: Text preprocessing for translation
+
+35. huggingface-hub - Apache License 2.0
+    Copyright (c) 2020 Hugging Face
+    https://github.com/huggingface/huggingface_hub
+    Used for: Downloading and managing AI models
+
+36. nvidia-ml-py3 - BSD-3-Clause License
+    Copyright (c) 2011-2024 NVIDIA Corporation
+    https://github.com/nicolargo/nvidia-ml-py3
+    Used for: NVIDIA GPU monitoring
+
+================================================================================
+
+SPECIAL THANKS
+
+This project would not be possible without the incredible open-source community
+and the following organizations and individuals:
+
+- The PyQt team at Riverbank Computing for the excellent GUI framework
+- The PyTorch team at Meta for the powerful deep learning framework
+- The Hugging Face team for democratizing AI and NLP
+- The PaddlePaddle team for high-quality OCR models
+- The OpenCV team for comprehensive image processing tools
+- All the individual contributors to the open-source libraries used
+- The AI/ML research community for advancing the field
+- The translation and OCR research communities
+- Everyone who contributed bug reports, suggestions, and feedback
+
+================================================================================
+
+Full license texts for third-party components can be found in the THIRD-PARTY-LICENSES directory.
+
+================================================================================
+
+GNU GENERAL PUBLIC LICENSE
+
+TERMS AND CONDITIONS
+
+0. Definitions.
+
+"This License" refers to version 3 of the GNU General Public License.
+
+"Copyright" also means copyright-like laws that apply to other kinds of works,
+such as semiconductor masks.
+
+"The Program" refers to any copyrightable work licensed under this License.
+
+"You" means an individual or a legal entity exercising rights under this License.
+
+"Modify" means to copy from or adapt all or part of the work in a fashion
+requiring copyright permission, other than the making of an exact copy.
+
+"Covered work" means either the unmodified Program or a work based on the Program.
+
+"Propagate" means to do anything with it that, without permission, would make you
+directly or secondarily liable for infringement under applicable copyright law.
+
+"Convey" means any kind of propagation that enables other parties to make or
+receive copies.
+
+1. Source Code.
+
+The "source code" for a work means the preferred form of the work for making
+modifications to it. "Object code" means any non-source form of a work.
+
+2. Basic Permissions.
+
+All rights granted under this License are granted for the term of copyright on
+the Program, and are irrevocable provided the stated conditions are met.
+
+You may make, run and propagate covered works that you do not convey, without
+conditions so long as your license otherwise remains in force.
+
+3. Protecting Users' Legal Rights From Anti-Circumvention Law.
+
+No covered work shall be deemed part of an effective technological measure under
+any applicable law fulfilling obligations under article 11 of the WIPO copyright
+treaty adopted on 20 December 1996, or similar laws prohibiting or restricting
+circumvention of such measures.
+
+4. Conveying Verbatim Copies.
+
+You may convey verbatim copies of the Program's source code as you receive it,
+in any medium, provided that you conspicuously and appropriately publish on each
+copy an appropriate copyright notice; keep intact all notices stating that this
+License and any non-permissive terms added in accord with section 7 apply to the
+code; keep intact all notices of the absence of any warranty; and give all
+recipients a copy of this License along with the Program.
+
+5. Conveying Modified Source Versions.
+
+You may convey a work based on the Program, or the modifications to produce it
+from the Program, in source code form under the terms of section 4, provided that
+you also meet all of these conditions:
+
+a) The work must carry prominent notices stating that you modified it, and giving
+   a relevant date.
+
+b) The work must carry prominent notices stating that it is released under this
+   License and any conditions added under section 7.
+
+c) You must license the entire work, as a whole, under this License to anyone who
+   comes into possession of a copy.
+
+For the full GPL-3.0 license text, see: https://www.gnu.org/licenses/gpl-3.0.txt

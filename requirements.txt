@@ -1,0 +1,86 @@
+# OptikR Requirements
+# Install: pip install -r requirements.txt
+
+# GUI Framework
+PyQt6>=6.5.0
+PyQt6-Qt6>=6.5.0
+PyQt6-sip>=13.5.0
+
+# Deep Learning & AI
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# OCR Engines
+easyocr>=1.7.0
+paddleocr>=2.7.0
+manga-ocr>=0.1.11
+pytesseract>=0.3.10
+
+# Translation
+transformers>=4.30.0
+sentencepiece>=0.1.99
+sacremoses>=0.0.53
+huggingface-hub>=0.16.0
+
+# Image Processing
+opencv-python>=4.8.0
+opencv-contrib-python>=4.8.0
+Pillow>=10.0.0
+numpy>=1.24.0
+scipy>=1.11.0
+
+# Screen Capture
+dxcam>=0.0.5
+mss>=9.0.1
+pyautogui>=0.9.54
+
+# System Utilities
+psutil>=5.9.0
+GPUtil>=1.4.0
+
+# Networking
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Data & Config
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# Security
+cryptography>=41.0.0
+
+# Windows-specific
+pywin32>=306
+
+# Additional Image Processing
+scikit-image>=0.21.0
+
+# Translation Services
+googletrans==4.0.0rc1
+deepl>=1.16.0
+google-cloud-translate>=3.12.0  # Google Cloud Translation API (premium, optional)
+
+# System Utilities
+pystray>=0.19.0
+py-cpuinfo>=9.0.0
+
+# GPU Acceleration (Optional)
+# cupy>=12.0.0  # CUDA-accelerated NumPy
+# pyopencl>=2023.1  # OpenCL support
+# numba>=0.57.0  # JIT compiler
+
+# Text Processing
+textdistance>=4.5.0
+pyspellchecker>=0.7.2
+
+# Performance Monitoring
+nvidia-ml-py3>=7.352.0
+
+# Audio Translation (Hidden Plugin - Optional)
+# Uncomment if using the real-time audio translation feature
+# openai-whisper>=20231117
+# pyaudio>=0.2.13
+# pyttsx3>=2.90
+# webrtcvad>=2.0.10  # Optional: Voice Activity Detection
+# TTS>=0.22.0  # Optional: Better TTS quality
