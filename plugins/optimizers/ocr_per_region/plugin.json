@@ -1,0 +1,43 @@
+{
+    "name": "ocr_per_region",
+    "display_name": "OCR per Region",
+    "version": "1.0.0",
+    "type": "optimizer",
+    "target_stage": "ocr",
+    "stage": "pre",
+    "description": "Allows different OCR engines for different capture regions. Perfect for multi-region setups with varying text styles.",
+    "author": "OptikR Team",
+    "enabled": false,
+    "essential": false,
+    "settings": {
+        "region_ocr_mapping": {
+            "type": "dict",
+            "default": {},
+            "description": "Maps region IDs to OCR engine names (e.g., {'region1': 'easyocr', 'region2': 'tesseract'})"
+        },
+        "default_ocr": {
+            "type": "string",
+            "default": "easyocr",
+            "description": "Default OCR engine for regions without specific mapping"
+        },
+        "parallel_regions": {
+            "type": "boolean",
+            "default": true,
+            "description": "Process multiple regions in parallel (faster but more memory)"
+        },
+        "cache_engines": {
+            "type": "boolean",
+            "default": true,
+            "description": "Keep all OCR engines loaded in memory (faster but more memory)"
+        }
+    },
+    "performance": {
+        "benefit": "Optimal OCR engine per region type (manga, text, etc.)",
+        "overhead": "Minimal if engines are cached",
+        "memory": "Higher if multiple engines loaded"
+    },
+    "requirements": {
+        "min_regions": 1,
+        "recommended": "Use with multi-region capture setup"
+    }
+}

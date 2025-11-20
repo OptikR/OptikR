@@ -1,0 +1,41 @@
+{
+  "name": "spell_corrector",
+  "display_name": "Intelligent Spell Corrector",
+  "version": "1.0.0",
+  "description": "Advanced OCR error correction with learning dictionary integration",
+  "author": "OptikR Team",
+  "category": "text_processor",
+  "enabled": true,
+  "priority": 10,
+  "settings": {
+    "aggressive_mode": {
+      "type": "boolean",
+      "default": false,
+      "description": "Use aggressive spell checking (may over-correct)"
+    },
+    "use_learning_dict": {
+      "type": "boolean",
+      "default": true,
+      "description": "Learn from translation dictionary to improve corrections"
+    },
+    "fix_capitalization": {
+      "type": "boolean",
+      "default": true,
+      "description": "Fix random capitalization errors"
+    },
+    "min_confidence": {
+      "type": "float",
+      "default": 0.5,
+      "description": "Minimum confidence to apply correction (0.0-1.0)"
+    },
+    "language": {
+      "type": "string",
+      "default": "en",
+      "description": "Language for spell checking"
+    }
+  },
+  "dependencies": {
+    "python": ["pyspellchecker"],
+    "optional": ["textdistance", "python-Levenshtein"]
+  }
+}

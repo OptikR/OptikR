@@ -1,0 +1,41 @@
+{
+  "name": "regex",
+  "display_name": "Regex Text Processor",
+  "version": "1.0.0",
+  "author": "OptikR Team",
+  "description": "Advanced regex-based text processing with pattern matching, filtering, and normalization",
+  "type": "text_processor",
+  "enabled": false,
+  "settings": {
+    "filter_mode": {
+      "type": "string",
+      "default": "basic",
+      "options": ["basic", "aggressive", "normalize", "ocr_cleanup", "japanese", "url_email"],
+      "description": "Text filtering mode: basic (whitespace), aggressive (special chars), normalize (quotes/dashes), ocr_cleanup (OCR errors), japanese (spacing), url_email (remove URLs/emails)"
+    },
+    "custom_patterns": {
+      "type": "array",
+      "default": [],
+      "description": "Custom regex patterns: [{'pattern': 'regex', 'replacement': 'text'}]"
+    },
+    "min_text_length": {
+      "type": "int",
+      "default": 1,
+      "min": 0,
+      "max": 100,
+      "description": "Minimum text length to keep"
+    },
+    "max_text_length": {
+      "type": "int",
+      "default": 10000,
+      "min": 100,
+      "max": 100000,
+      "description": "Maximum text length to keep"
+    }
+  },
+  "performance": {
+    "benefit": "Clean and normalize text, remove noise",
+    "overhead": "<1ms per text block",
+    "memory": "Minimal"
+  }
+}

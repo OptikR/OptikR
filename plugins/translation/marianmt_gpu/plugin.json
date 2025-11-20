@@ -1,0 +1,66 @@
+{
+  "name": "marianmt_gpu",
+  "display_name": "MarianMT Neural Translation (GPU/CPU)",
+  "version": "1.0.0",
+  "author": "OptikR Team",
+  "description": "Neural machine translation using MarianMT (Helsinki-NLP models) - GPU accelerated with CPU fallback",
+  "type": "translation",
+  "worker_script": "worker.py",
+  "enabled_by_default": true,
+  "settings": {
+    "source_language": {
+      "type": "string",
+      "default": "en",
+      "description": "Source language code",
+      "options": ["en", "ja", "ko", "zh", "de", "fr", "es", "ru"]
+    },
+    "target_language": {
+      "type": "string",
+      "default": "de",
+      "description": "Target language code",
+      "options": ["en", "ja", "ko", "zh", "de", "fr", "es", "ru"]
+    },
+    "gpu": {
+      "type": "bool",
+      "default": true,
+      "description": "Use GPU acceleration if available"
+    },
+    "batch_size": {
+      "type": "int",
+      "default": 8,
+      "description": "Number of texts to translate in one batch",
+      "min": 1,
+      "max": 32
+    },
+    "max_length": {
+      "type": "int",
+      "default": 512,
+      "description": "Maximum length of translated text",
+      "min": 64,
+      "max": 1024
+    }
+  },
+  "dependencies": [
+    "transformers",
+    "torch",
+    "sentencepiece"
+  ],
+  "runtime_requirements": {
+    "gpu": {
+      "required": false,
+      "recommended": true,
+      "libraries": ["torch+cu121", "transformers", "sentencepiece"],
+      "performance_note": "5-10x faster on GPU"
+    },
+    "cpu": {
+      "supported": true,
+      "performance_note": "Slower but functional on CPU",
+      "libraries": ["torch-cpu", "transformers", "sentencepiece"]
+    }
+  },
+  "exe_compatibility": {
+    "cpu_build": true,
+    "gpu_build": true,
+    "auto_disable_on_cpu": false
+  }
+}

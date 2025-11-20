@@ -1,0 +1,47 @@
+{
+  "name": "dxcam_capture_gpu",
+  "display_name": "DXCam Screen Capture (GPU)",
+  "version": "1.0.0",
+  "author": "OptikR Team",
+  "description": "High-performance screen capture using DXCam (DirectX-based) - Requires GPU",
+  "type": "capture",
+  "worker_script": "worker.py",
+  "enabled_by_default": true,
+  "settings": {
+    "target_fps": {
+      "type": "int",
+      "default": 60,
+      "description": "Target frames per second for capture",
+      "min": 1,
+      "max": 144
+    },
+    "color_mode": {
+      "type": "string",
+      "default": "BGR",
+      "description": "Color mode for captured frames",
+      "options": ["BGR", "RGB", "GRAY"]
+    }
+  },
+  "dependencies": [
+    "dxcam",
+    "numpy"
+  ],
+  "runtime_requirements": {
+    "gpu": {
+      "required": true,
+      "recommended": true,
+      "libraries": ["dxcam"],
+      "gpu_features": ["DirectX 11+", "NVIDIA/AMD GPU"]
+    },
+    "cpu": {
+      "supported": false,
+      "fallback_plugin": "screenshot_capture",
+      "reason": "DXCam requires DirectX GPU acceleration"
+    }
+  },
+  "exe_compatibility": {
+    "cpu_build": false,
+    "gpu_build": true,
+    "auto_disable_on_cpu": true
+  }
+}

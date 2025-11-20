@@ -1,0 +1,53 @@
+{
+  "name": "text_block_merger",
+  "display_name": "Text Block Merger",
+  "version": "1.0.0",
+  "type": "optimizer",
+  "target_stage": "ocr",
+  "stage": "post",
+  "description": "Intelligently merges nearby text blocks into complete sentences based on proximity and layout. Essential for manga and comics.",
+  "author": "OptikR Team",
+  "enabled": true,
+  "essential": true,
+  "settings": {
+    "horizontal_threshold": {
+      "type": "int",
+      "default": 50,
+      "min": 5,
+      "max": 200,
+      "description": "Maximum horizontal distance (pixels) to merge text blocks (50px good for manga speech bubbles)"
+    },
+    "vertical_threshold": {
+      "type": "int",
+      "default": 30,
+      "min": 3,
+      "max": 100,
+      "description": "Maximum vertical distance (pixels) to merge text blocks (30px good for manga multi-line text)"
+    },
+    "line_height_tolerance": {
+      "type": "float",
+      "default": 1.5,
+      "min": 1.0,
+      "max": 3.0,
+      "description": "Tolerance for detecting same line (multiplier of text height)"
+    },
+    "merge_strategy": {
+      "type": "string",
+      "default": "smart",
+      "options": ["smart", "horizontal", "vertical", "aggressive"],
+      "description": "Merging strategy: smart (context-aware, best for manga), horizontal (left-to-right, for web pages), vertical (top-to-bottom), aggressive (merge everything nearby)"
+    },
+    "respect_punctuation": {
+      "type": "bool",
+      "default": true,
+      "description": "Don't merge across sentence boundaries (periods, question marks, etc.)"
+    },
+    "min_confidence": {
+      "type": "float",
+      "default": 0.3,
+      "min": 0.0,
+      "max": 1.0,
+      "description": "Minimum OCR confidence to consider for merging"
+    }
+  }
+}

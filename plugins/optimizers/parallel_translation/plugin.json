@@ -1,0 +1,59 @@
+{
+    "name": "parallel_translation",
+    "display_name": "Parallel Translation",
+    "version": "1.0.0",
+    "type": "optimizer",
+    "target_stage": "translation",
+    "stage": "core",
+    "description": "Translates multiple text blocks simultaneously using worker threads. Provides significant speedup for API-based translators with network latency.",
+    "author": "OptikR Team",
+    "enabled": false,
+    "settings": {
+        "worker_threads": {
+            "type": "int",
+            "default": 2,
+            "min": 1,
+            "max": 8,
+            "description": "Number of worker threads for parallel translation"
+        },
+        "batch_size": {
+            "type": "int",
+            "default": 8,
+            "min": 2,
+            "max": 64,
+            "description": "Maximum number of texts to translate in one batch"
+        },
+        "timeout_seconds": {
+            "type": "float",
+            "default": 30.0,
+            "min": 5.0,
+            "max": 120.0,
+            "description": "Timeout for translation operations (increased for model loading)"
+        },
+        "use_gpu": {
+            "type": "boolean",
+            "default": true,
+            "description": "Use GPU acceleration if available"
+        },
+        "enable_warm_start": {
+            "type": "boolean",
+            "default": true,
+            "description": "Pre-load translation models in worker threads to avoid threading issues"
+        },
+        "fallback_on_error": {
+            "type": "boolean",
+            "default": true,
+            "description": "Automatically fall back to sequential processing if parallel translation fails"
+        }
+    },
+    "performance": {
+        "benefit": "2-4x faster translation for multiple text blocks (especially with API translators)",
+        "overhead": "Thread pool management (~2-5ms)",
+        "memory": "Moderate (thread pool + translation model instances)"
+    },
+    "requirements": {
+        "min_texts": 2,
+        "recommended_cpu_cores": 4,
+        "best_for": "API-based translators (Google, DeepL) or local models with GPU"
+    }
+}

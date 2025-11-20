@@ -1,0 +1,44 @@
+{
+    "name": "async_pipeline",
+    "display_name": "Async Pipeline Optimizer",
+    "version": "1.0.0",
+    "type": "optimizer",
+    "target_stage": "pipeline",
+    "stage": "global",
+    "description": "Enables overlapping execution of pipeline stages. Improves throughput by 50-80% on multi-core systems.",
+    "author": "OptikR Team",
+    "enabled": false,
+    "settings": {
+        "max_concurrent_stages": {
+            "type": "int",
+            "default": 4,
+            "min": 2,
+            "max": 8,
+            "description": "Maximum concurrent pipeline stages"
+        },
+        "queue_size": {
+            "type": "int",
+            "default": 16,
+            "min": 4,
+            "max": 64,
+            "description": "Queue size between stages"
+        },
+        "enable_prefetch": {
+            "type": "bool",
+            "default": true,
+            "description": "Prefetch next frame while processing current"
+        },
+        "thread_pool_size": {
+            "type": "int",
+            "default": 4,
+            "min": 2,
+            "max": 16,
+            "description": "Thread pool size for async execution"
+        }
+    },
+    "performance": {
+        "benefit": "50-80% higher throughput",
+        "overhead": "Minimal (thread management)",
+        "memory": "Buffers queue_size frames per stage"
+    }
+}

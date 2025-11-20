@@ -1,0 +1,70 @@
+{
+    "name": "hybrid_ocr",
+    "display_name": "Hybrid OCR (EasyOCR + Tesseract)",
+    "version": "1.0.0",
+    "author": "OptikR Team",
+    "description": "Combines EasyOCR and Tesseract for best accuracy - uses both engines and picks the best results",
+    "type": "ocr",
+    "engine_type": "hybrid_ocr",
+    "entry_point": "__init__.py",
+    "enabled_by_default": false,
+    "essential": false,
+    "settings": {
+        "language": {
+            "type": "string",
+            "default": "en",
+            "description": "OCR language code (en, ja, ko, zh, etc.)",
+            "options": ["en", "ja", "ko", "zh_sim", "zh_tra", "de", "fr", "es", "ru"]
+        },
+        "gpu": {
+            "type": "bool",
+            "default": true,
+            "description": "Use GPU acceleration if available"
+        },
+        "confidence_threshold": {
+            "type": "float",
+            "default": 0.5,
+            "description": "Minimum confidence threshold for accepting results",
+            "min": 0.0,
+            "max": 1.0
+        },
+        "strategy": {
+            "type": "string",
+            "default": "best_confidence",
+            "description": "Strategy for combining results",
+            "options": ["best_confidence", "longest_text", "consensus", "easyocr_primary"]
+        },
+        "optimization_mode": {
+            "type": "string",
+            "default": "balanced",
+            "description": "Performance optimization mode",
+            "options": ["fast", "balanced", "accurate"]
+        },
+        "parallel_execution": {
+            "type": "bool",
+            "default": true,
+            "description": "Run both engines in parallel (faster but more memory)"
+        },
+        "smart_fallback": {
+            "type": "bool",
+            "default": true,
+            "description": "Only run second engine if first has low confidence"
+        },
+        "cache_enabled": {
+            "type": "bool",
+            "default": true,
+            "description": "Cache results to avoid re-processing similar frames"
+        }
+    },
+    "dependencies": [
+        "easyocr",
+        "pytesseract",
+        "opencv-python",
+        "numpy"
+    ],
+    "performance": {
+        "speed": "Slower (runs 2 OCR engines)",
+        "accuracy": "Highest (combines best of both)",
+        "memory": "Higher (loads 2 engines)"
+    }
+}

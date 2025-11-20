@@ -1,0 +1,43 @@
+{
+    "name":  "parallel_capture",
+    "display_name":  "Parallel Capture",
+    "version":  "1.0.0",
+    "type":  "optimizer",
+    "target_stage":  "capture",
+    "stage":  "core",
+    "description":  "Captures multiple regions simultaneously using worker threads. Ideal for multi-monitor setups or multiple capture zones.",
+    "author":  "OptikR Team",
+    "enabled":  false,
+    "settings":  {
+                     "worker_threads":  {
+                                            "type":  "int",
+                                            "default":  4,
+                                            "min":  2,
+                                            "max":  8,
+                                            "description":  "Number of worker threads for parallel capture"
+                                        },
+                     "queue_size":  {
+                                        "type":  "int",
+                                        "default":  10,
+                                        "min":  5,
+                                        "max":  50,
+                                        "description":  "Maximum queue size for capture tasks"
+                                    },
+                     "timeout_seconds":  {
+                                             "type":  "float",
+                                             "default":  5.0,
+                                             "min":  1.0,
+                                             "max":  30.0,
+                                             "description":  "Timeout for capture operations"
+                                         }
+                 },
+    "performance":  {
+                        "benefit":  "Proportional speedup with number of regions (2x for 2 regions, 3x for 3 regions, etc.)",
+                        "overhead":  "Thread pool management (~2-5ms)",
+                        "memory":  "Moderate (thread pool + queue buffers)"
+                    },
+    "requirements":  {
+                         "min_regions":  2,
+                         "recommended_cpu_cores":  4
+                     }
+}

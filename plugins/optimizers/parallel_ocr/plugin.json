@@ -1,0 +1,49 @@
+{
+    "name":  "parallel_ocr",
+    "display_name":  "Parallel OCR",
+    "version":  "1.0.0",
+    "type":  "optimizer",
+    "target_stage":  "ocr",
+    "stage":  "core",
+    "description":  "Processes multiple text regions simultaneously using worker threads. Significantly speeds up OCR for documents with many text blocks.",
+    "author":  "OptikR Team",
+    "enabled":  false,
+    "settings":  {
+                     "worker_threads":  {
+                                            "type":  "int",
+                                            "default":  4,
+                                            "min":  2,
+                                            "max":  8,
+                                            "description":  "Number of worker threads for parallel OCR"
+                                        },
+                     "batch_size":  {
+                                        "type":  "int",
+                                        "default":  8,
+                                        "min":  2,
+                                        "max":  32,
+                                        "description":  "Maximum number of regions to process in one batch"
+                                    },
+                     "timeout_seconds":  {
+                                             "type":  "float",
+                                             "default":  10.0,
+                                             "min":  5.0,
+                                             "max":  60.0,
+                                             "description":  "Timeout for OCR operations"
+                                         },
+                     "use_gpu":  {
+                                     "type":  "boolean",
+                                     "default":  true,
+                                     "description":  "Use GPU acceleration if available"
+                                 }
+                 },
+    "performance":  {
+                        "benefit":  "2-3x faster OCR for multiple regions",
+                        "overhead":  "Thread pool management (~3-8ms)",
+                        "memory":  "Moderate to High (multiple OCR engine instances)"
+                    },
+    "requirements":  {
+                         "min_regions":  2,
+                         "recommended_cpu_cores":  4,
+                         "gpu_recommended":  true
+                     }
+}

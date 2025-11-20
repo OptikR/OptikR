@@ -1,0 +1,72 @@
+{
+  "name": "libretranslate",
+  "display_name": "LibreTranslate (Free Online API)",
+  "version": "1.0.0",
+  "author": "OptikR Team",
+  "description": "Free online translation using LibreTranslate API - supports 30+ languages, self-hostable",
+  "type": "translation",
+  "enabled": false,
+  "essential": false,
+  "settings": {
+    "api_url": {
+      "type": "string",
+      "default": "https://libretranslate.com/translate",
+      "description": "LibreTranslate API URL (use default for public instance, or your own self-hosted URL)"
+    },
+    "api_key": {
+      "type": "string",
+      "default": "",
+      "description": "Optional API key (get free at libretranslate.com, or leave empty for public API)"
+    },
+    "timeout": {
+      "type": "int",
+      "default": 30,
+      "min": 5,
+      "max": 120,
+      "description": "Request timeout in seconds"
+    },
+    "max_retries": {
+      "type": "int",
+      "default": 3,
+      "min": 1,
+      "max": 10,
+      "description": "Maximum retry attempts on failure"
+    },
+    "source_language": {
+      "type": "string",
+      "default": "en",
+      "description": "Source language code",
+      "options": ["en", "ja", "ko", "zh", "de", "fr", "es", "ru", "ar", "it", "pt", "nl", "tr", "pl", "cs", "sv", "da", "fi", "el", "he", "hi", "hu", "id", "ga", "fa", "sk", "uk", "vi", "az", "eo"]
+    },
+    "target_language": {
+      "type": "string",
+      "default": "de",
+      "description": "Target language code",
+      "options": ["en", "ja", "ko", "zh", "de", "fr", "es", "ru", "ar", "it", "pt", "nl", "tr", "pl", "cs", "sv", "da", "fi", "el", "he", "hi", "hu", "id", "ga", "fa", "sk", "uk", "vi", "az", "eo"]
+    }
+  },
+  "dependencies": [
+    "requests"
+  ],
+  "runtime_requirements": {
+    "internet": {
+      "required": true,
+      "note": "Requires internet connection to access LibreTranslate API"
+    }
+  },
+  "performance": {
+    "benefit": "Free, open-source, self-hostable, supports 30+ languages",
+    "overhead": "Network latency (100-500ms per request for public API, faster for self-hosted)",
+    "memory": "Minimal (API-based)"
+  },
+  "notes": {
+    "public_api": "Public API has rate limits. Consider self-hosting for production use.",
+    "self_hosting": "Install with: docker run -ti --rm -p 5000:5000 libretranslate/libretranslate",
+    "documentation": "https://github.com/LibreTranslate/LibreTranslate"
+  },
+  "exe_compatibility": {
+    "cpu_build": true,
+    "gpu_build": true,
+    "auto_disable_on_cpu": false
+  }
+}

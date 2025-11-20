@@ -1,0 +1,76 @@
+{
+  "name": "system_diagnostics",
+  "version": "2.0.0",
+  "description": "Real-time bidirectional audio translation for video calls",
+  "stage": "standalone",
+  "enabled": false,
+  "hidden": true,
+  "unlock_message": "🎤 Real-time audio translation unlocked! Perfect for Zoom/Skype calls.",
+  "settings": {
+    "enabled": {
+      "type": "bool",
+      "default": false,
+      "description": "Enable real-time audio translation"
+    },
+    "input_device": {
+      "type": "int",
+      "default": null,
+      "description": "Input device (microphone) index (null = default)"
+    },
+    "output_device": {
+      "type": "int",
+      "default": null,
+      "description": "Output device (speaker/headphones) index (null = default)"
+    },
+    "source_language": {
+      "type": "string",
+      "default": "en",
+      "options": ["en", "ja", "de", "es", "fr", "zh", "ko", "ru", "it", "pt"],
+      "description": "Your language (what you speak)"
+    },
+    "target_language": {
+      "type": "string",
+      "default": "ja",
+      "options": ["ja", "en", "de", "es", "fr", "zh", "ko", "ru", "it", "pt"],
+      "description": "Target language (what you want to hear)"
+    },
+    "bidirectional": {
+      "type": "bool",
+      "default": true,
+      "description": "Enable bidirectional translation (auto-detect and translate both ways)"
+    },
+    "whisper_model": {
+      "type": "string",
+      "default": "base",
+      "options": ["tiny", "base", "small", "medium", "large"],
+      "description": "Whisper model size (larger = more accurate but slower)"
+    },
+    "use_gpu": {
+      "type": "bool",
+      "default": true,
+      "description": "Use GPU acceleration for Whisper (3-5x faster)"
+    },
+    "vad_enabled": {
+      "type": "bool",
+      "default": true,
+      "description": "Enable Voice Activity Detection (reduces false transcriptions)"
+    },
+    "vad_sensitivity": {
+      "type": "int",
+      "default": 2,
+      "options": [0, 1, 2, 3],
+      "description": "VAD sensitivity (0=low, 3=high)"
+    }
+  },
+  "requirements": [
+    "openai-whisper",
+    "pyaudio",
+    "pyttsx3",
+    "numpy",
+    "scipy"
+  ],
+  "optional_requirements": [
+    "webrtcvad",
+    "TTS"
+  ]
+}

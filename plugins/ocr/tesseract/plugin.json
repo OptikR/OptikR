@@ -1,0 +1,16 @@
+{
+  "name": "tesseract",
+  "display_name": "Tesseract",
+  "version": "1.0.0",
+  "author": "Auto-generated",
+  "description": "OCR engine using tesseract library",
+  "type": "ocr",
+  "engine_type": "tesseract",
+  "entry_point": "__init__.py",
+  "worker_script": "worker.py",
+  "enabled_by_default": true,
+  "settings": {},
+  "dependencies": [
+    "pytesseract"
+  ]
+}

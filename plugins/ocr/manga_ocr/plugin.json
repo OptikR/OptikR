@@ -1,0 +1,16 @@
+{
+  "name": "manga_ocr",
+  "display_name": "Manga Ocr",
+  "version": "1.0.0",
+  "author": "Auto-generated",
+  "description": "OCR engine using manga_ocr library",
+  "type": "ocr",
+  "engine_type": "manga_ocr",
+  "entry_point": "__init__.py",
+  "worker_script": "worker.py",
+  "enabled_by_default": true,
+  "settings": {},
+  "dependencies": [
+    "manga_ocr"
+  ]
+}

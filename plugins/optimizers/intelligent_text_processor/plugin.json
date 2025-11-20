@@ -1,0 +1,20 @@
+{
+  "name": "intelligent_text_processor",
+  "display_name": "Intelligent Text Processor",
+  "version": "1.0.0",
+  "type": "optimizer",
+  "target_stage": "ocr",
+  "stage": "post",
+  "description": "Combines OCR error correction, text validation, and smart dictionary lookup. Fixes common errors like | → I, 0 → O, rn → m. Essential for parallel processing. Replaces text_validator plugin.",
+  "author": "OptikR Team",
+  "essential": true,
+  "replaces": ["text_validator"],
+  "config": {
+    "enable_corrections": true,
+    "enable_context": true,
+    "enable_validation": true,
+    "min_confidence": 0.3,
+    "auto_learn": true
+  },
+  "dependencies": []
+}

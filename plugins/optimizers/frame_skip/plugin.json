@@ -1,0 +1,50 @@
+{
+    "name":  "frame_skip",
+    "display_name":  "Frame Skip Optimizer",
+    "version":  "1.0.0",
+    "type":  "optimizer",
+    "target_stage":  "capture",
+    "stage":  "post",
+    "description":  "Skips processing of unchanged frames to reduce CPU usage by 50-70%. Perfect for static scenes.",
+    "author":  "OptikR Team",
+    "enabled":  true,
+    "essential":  true,
+    "settings":  {
+                     "similarity_threshold":  {
+                                                  "type":  "float",
+                                                  "default":  0.98,
+                                                  "min":  0.8,
+                                                  "max":  0.99,
+                                                  "description":  "Frame similarity threshold (0.8-0.99)"
+                                              },
+                     "min_skip_frames":  {
+                                             "type":  "int",
+                                             "default":  3,
+                                             "min":  1,
+                                             "max":  10,
+                                             "description":  "Minimum frames before skipping"
+                                         },
+                     "max_skip_frames":  {
+                                             "type":  "int",
+                                             "default":  30,
+                                             "min":  10,
+                                             "max":  300,
+                                             "description":  "Maximum consecutive skipped frames"
+                                         },
+                     "comparison_method":  {
+                                               "type":  "string",
+                                               "default":  "hash",
+                                               "options":  [
+                                                               "hash",
+                                                               "mse",
+                                                               "ssim"
+                                                           ],
+                                               "description":  "Frame comparison method"
+                                           }
+                 },
+    "performance":  {
+                        "benefit":  "50-70% CPU reduction for static scenes",
+                        "overhead":  "1-2ms per frame comparison",
+                        "memory":  "Minimal (stores 1 previous frame)"
+                    }
+}

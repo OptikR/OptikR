@@ -1,0 +1,33 @@
+{
+    "name":  "text_validator",
+    "display_name":  "Text Validator (Legacy)",
+    "version":  "1.0.0",
+    "type":  "optimizer",
+    "target_stage":  "ocr",
+    "stage":  "post",
+    "description":  "⚠️ DEPRECATED: Use 'Intelligent Text Processor' instead. This plugin only validates text without OCR error correction. Kept for backward compatibility.",
+    "author":  "OptikR Team",
+    "enabled":  false,
+    "essential":  false,
+    "deprecated":  true,
+    "replaced_by":  "intelligent_text_processor",
+    "settings":  {
+                     "min_confidence":  {
+                                            "type":  "float",
+                                            "default":  0.3,
+                                            "min":  0.1,
+                                            "max":  0.9,
+                                            "description":  "Minimum confidence threshold for text validation"
+                                        },
+                     "enable_smart_grammar":  {
+                                                  "type":  "boolean",
+                                                  "default":  false,
+                                                  "description":  "Enable lightweight grammar checking (\u003c5ms overhead)"
+                                              }
+                 },
+    "performance":  {
+                        "benefit":  "30-50% noise reduction, cleaner translations",
+                        "overhead":  "\u003c1ms per text block",
+                        "memory":  "Minimal"
+                    }
+}

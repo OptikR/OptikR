@@ -1,0 +1,38 @@
+{
+    "name":  "translation_cache",
+    "display_name":  "Translation Cache Optimizer",
+    "version":  "1.0.0",
+    "type":  "optimizer",
+    "target_stage":  "translation",
+    "stage":  "pre",
+    "description":  "Caches translations for instant lookup of repeated text. Provides 100x speedup for repeated content.",
+    "author":  "OptikR Team",
+    "enabled":  true,
+    "essential":  true,
+    "settings":  {
+                     "max_cache_size":  {
+                                            "type":  "int",
+                                            "default":  10000,
+                                            "min":  100,
+                                            "max":  100000,
+                                            "description":  "Maximum number of cached translations"
+                                        },
+                     "ttl_seconds":  {
+                                         "type":  "int",
+                                         "default":  3600,
+                                         "min":  60,
+                                         "max":  86400,
+                                         "description":  "Time-to-live for cache entries (seconds)"
+                                     },
+                     "enable_fuzzy_match":  {
+                                                "type":  "bool",
+                                                "default":  false,
+                                                "description":  "Enable fuzzy matching for similar text"
+                                            }
+                 },
+    "performance":  {
+                        "benefit":  "Instant for repeated text (\u003c1ms vs 30-100ms)",
+                        "overhead":  "Minimal (\u003c1ms lookup)",
+                        "memory":  "~1MB per 1000 entries"
+                    }
+}

@@ -1,0 +1,55 @@
+{
+  "name": "screenshot_capture_cpu",
+  "display_name": "Screenshot Screen Capture (CPU)",
+  "version": "1.0.0",
+  "author": "OptikR Team",
+  "description": "Cross-platform screen capture using Win32 GDI, MSS, or PIL (fallback methods) - CPU compatible",
+  "type": "capture",
+  "worker_script": "worker.py",
+  "enabled_by_default": true,
+  "essential": true,
+  "essential_reason": "Fallback capture method when DirectX is not available - ensures system always has a working capture method",
+  "can_disable": false,
+  "settings": {
+    "method": {
+      "type": "string",
+      "default": "auto",
+      "description": "Screenshot method to use",
+      "options": ["auto", "win32", "mss", "pil"]
+    },
+    "color_mode": {
+      "type": "string",
+      "default": "BGR",
+      "description": "Color mode for captured frames",
+      "options": ["BGR", "RGB", "GRAY"]
+    }
+  },
+  "dependencies": [
+    "numpy",
+    "pywin32 (optional - for Win32 GDI)",
+    "mss (optional - for MSS)",
+    "pillow (optional - for PIL)"
+  ],
+  "performance": {
+    "fps": "~85 FPS (11-12ms per frame)",
+    "best_for": "Small regions, fallback when DirectX unavailable",
+    "cpu_usage": "Low-Medium"
+  },
+  "runtime_requirements": {
+    "gpu": {
+      "required": false,
+      "recommended": false,
+      "libraries": []
+    },
+    "cpu": {
+      "supported": true,
+      "performance_note": "Fully functional on CPU",
+      "libraries": ["numpy", "pywin32", "mss", "pillow"]
+    }
+  },
+  "exe_compatibility": {
+    "cpu_build": true,
+    "gpu_build": true,
+    "auto_disable_on_cpu": false
+  }
+}

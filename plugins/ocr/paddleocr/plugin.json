@@ -1,0 +1,16 @@
+{
+  "name": "paddleocr",
+  "display_name": "Paddleocr",
+  "version": "1.0.0",
+  "author": "Auto-generated",
+  "description": "OCR engine using paddleocr library",
+  "type": "ocr",
+  "engine_type": "paddleocr",
+  "entry_point": "__init__.py",
+  "worker_script": "worker.py",
+  "enabled_by_default": true,
+  "settings": {},
+  "dependencies": [
+    "paddleocr"
+  ]
+}

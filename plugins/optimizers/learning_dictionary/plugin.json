@@ -1,0 +1,50 @@
+{
+    "name": "learning_dictionary",
+    "display_name": "Learning Dictionary",
+    "version": "1.1.0",
+    "type": "optimizer",
+    "target_stage": "translation",
+    "stage": "pre",
+    "description": "Persistent learned translations for instant lookup. Provides 20x speedup for repeated text. All data stored locally only.",
+    "author": "OptikR Team",
+    "enabled": true,
+    "essential": true,
+    "settings": {
+        "auto_save": {
+            "type": "boolean",
+            "default": true,
+            "description": "Automatically save new translations to local dictionary"
+        },
+        "min_confidence": {
+            "type": "float",
+            "default": 0.8,
+            "min": 0.5,
+            "max": 1.0,
+            "description": "Minimum confidence to save translation (0.8 = 80% confidence)"
+        },
+        "validate_sentences": {
+            "type": "boolean",
+            "default": true,
+            "description": "Validate sentences before saving (ensures complete, valid sentences only)"
+        }
+    },
+    "performance": {
+        "benefit": "Instant lookup for learned translations (20x speedup)",
+        "overhead": "<1ms dictionary lookup",
+        "memory": "Low (dictionary file, ~1MB per 1000 entries)"
+    },
+    "privacy": {
+        "data_storage": "100% local only",
+        "location": "dictionary/ folder in application directory",
+        "cloud_sync": "Never - all data stays on your device",
+        "data_transmission": "Never - dictionary never sent anywhere",
+        "user_control": "Full - view, edit, or delete entries anytime in Settings → Smart Dictionary"
+    },
+    "data_protection": {
+        "validation": "Sentences validated before saving (completeness, quality)",
+        "confidence_threshold": "Minimum 80% confidence required",
+        "user_consent": "Required on first run",
+        "data_ownership": "User owns all dictionary data",
+        "deletion": "User can delete dictionary anytime"
+    }
+}

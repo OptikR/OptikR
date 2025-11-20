@@ -1,0 +1,55 @@
+{
+  "name": "easyocr",
+  "display_name": "EasyOCR",
+  "version": "1.0.0",
+  "author": "OptikR Team",
+  "description": "Multi-language OCR using EasyOCR (supports 80+ languages) - GPU accelerated with CPU fallback",
+  "type": "ocr",
+  "engine_type": "easyocr",
+  "entry_point": "__init__.py",
+  "worker_script": "worker.py",
+  "enabled_by_default": true,
+  "essential": true,
+  "settings": {
+    "language": {
+      "type": "string",
+      "default": "en",
+      "description": "OCR language code (en, ja, ko, zh, etc.)",
+      "options": ["en", "ja", "ko", "zh_sim", "zh_tra", "de", "fr", "es", "ru"]
+    },
+    "gpu": {
+      "type": "bool",
+      "default": true,
+      "description": "Use GPU acceleration if available"
+    },
+    "min_confidence": {
+      "type": "float",
+      "default": 0.5,
+      "description": "Minimum confidence threshold for text detection",
+      "min": 0.0,
+      "max": 1.0
+    }
+  },
+  "dependencies": [
+    "easyocr",
+    "opencv-python",
+    "numpy"
+  ],
+  "runtime_requirements": {
+    "gpu": {
+      "required": false,
+      "recommended": true,
+      "libraries": ["torch+cu121", "easyocr"]
+    },
+    "cpu": {
+      "supported": true,
+      "performance_note": "Significantly slower on CPU",
+      "libraries": ["torch-cpu", "easyocr"]
+    }
+  },
+  "exe_compatibility": {
+    "cpu_build": true,
+    "gpu_build": true,
+    "auto_disable_on_cpu": false
+  }
+}
