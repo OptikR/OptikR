@@ -108,6 +108,12 @@ Beyond the framework, OptikR provides a powerful real-time screen translation an
 
 ---
 
+### 📜 Changelog
+
+- Added /app/utils/ 
+
+---
+
 ## 📸 Screenshots
 
 ### Main Interface
@@ -1116,8 +1122,7 @@ See LICENSE file for details.
 
 *Translate anything, anywhere, anytime.*
 
-**For complete documentation, see**: `readme_docs.md`
-
 </div>
+
 
 
