@@ -110,6 +110,32 @@ Beyond the framework, OptikR provides a powerful real-time screen translation an
 
 ### 📜 Changelog
 
+Version 0.1.1 fixes critical installation issues and adds proper CPU/GPU mode detection. This release ensures OptikR works seamlessly on both CPU-only and GPU systems without manual configuration.
+
+---
+
+## 🔧 Bug Fixes
+
+### Critical Fixes
+
+1. **Fixed PyTorch Installation Issues** 🔴 CRITICAL
+   - **Problem**: PyTorch in requirements.txt caused 2GB+ downloads and failed on CPU-only systems
+   - **Solution**: 
+     - Removed PyTorch from requirements.txt
+     - Added auto-installation on first run (CPU version, ~200MB)
+     - Created separate requirements-cpu.txt and requirements-gpu.txt
+   - **Impact**: Installation now works on ALL systems immediately
+
+2. **Fixed GPU-Only Features on CPU Systems** 🔴 CRITICAL
+   - **Problem**: DirectX/DXCam capture available even without GPU, causing errors
+   - **Solution**: 
+     - Added runtime mode detection (CPU/GPU)
+     - Filter GPU-only plugins in CPU mode
+     - Hide DirectX capture when GPU not available
+   - **Impact**: No more confusing errors on CPU-only systems
+
+---
+
 - Added /app/utils/ 
 
 ---
@@ -1123,6 +1149,7 @@ See LICENSE file for details.
 *Translate anything, anywhere, anytime.*
 
 </div>
+
 
 
 
