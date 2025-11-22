@@ -1,0 +1,9 @@
+# OptikR Requirements - GPU Version
+# Install: pip install -r requirements.txt && pip install -r requirements-gpu.txt
+# Requires: NVIDIA GPU with CUDA 12.1 or compatible
+
+# PyTorch with CUDA support
+--index-url https://download.pytorch.org/whl/cu121
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0

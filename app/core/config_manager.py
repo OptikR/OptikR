@@ -58,7 +58,8 @@ class SimpleConfigManager:
         return {
             '_metadata': {
                 'version': '2.0.0',
-                'description': 'Consolidated configuration - all settings in one place'
+                'description': 'Consolidated configuration - all settings in one place',
+                'app_version': '0.1.1'
             },
             'performance': {
                 'runtime_mode': 'auto',
@@ -127,7 +128,7 @@ class SimpleConfigManager:
                 'window_height': 950,
                 'window_min_width': 1300,
                 'window_min_height': 850,
-                'version': '1.0.0'
+                'version': '0.1.1'
             },
             'paths': {
                 'config_dir': 'user_data/config',
@@ -313,3 +314,39 @@ class SimpleConfigManager:
             del presets[preset_name]
             return True
         return False
+    
+    def detect_runtime_mode(self):
+        """
+        Auto-detect if system should run in CPU or GPU mode.
+        
+        Returns:
+            str: 'gpu' if CUDA available, 'cpu' otherwise
+        """
+        try:
+            import torch
+            if torch.cuda.is_available():
+                return 'gpu'
+        except:
+            pass
+        return 'cpu'
+    
+    def get_runtime_mode(self):
+        """
+        Get the current runtime mode (auto-detect if set to 'auto').
+        
+        Returns:
+            str: 'cpu' or 'gpu'
+        """
+        mode = self.get_setting('performance.runtime_mode', 'auto')
+        if mode == 'auto':
+            return self.detect_runtime_mode()
+        return mode
+    
+    def is_gpu_available(self):
+        """
+        Check if GPU is available for use.
+        
+        Returns:
+            bool: True if GPU mode is active and available
+        """
+        return self.get_runtime_mode() == 'gpu'

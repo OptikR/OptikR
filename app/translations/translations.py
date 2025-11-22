@@ -6428,8 +6428,8 @@ TRANSLATIONS = {
         "tr": "Validation Failed",
     },
     "version": {
-        "de": "v0.1 (Early Release)",
-        "en": "v0.1 (Early Release)",
+        "de": "v0.1.1 (Bug Fix Release)",
+        "en": "v0.1.1 (Bug Fix Release)",
         "fr": "v0.1 (Early Release)",
         "it": "v0.1 (Early Release)",
         "ja": "v0.1 (Early Release)",

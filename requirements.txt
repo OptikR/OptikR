@@ -7,9 +7,10 @@ PyQt6-Qt6>=6.5.0
 PyQt6-sip>=13.5.0
 
 # Deep Learning & AI
-torch>=2.0.0
-torchvision>=0.15.0
-torchaudio>=2.0.0
+# NOTE: PyTorch is installed automatically on first run based on your hardware
+# For manual installation:
+# - CPU only: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+# - GPU (CUDA 12.1): pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 # OCR Engines
 easyocr>=1.7.0

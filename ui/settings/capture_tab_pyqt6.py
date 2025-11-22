@@ -70,6 +70,7 @@ class CaptureSettingsTab(TranslatableMixin, QWidget):
     def _detect_available_capture_methods(self):
         """
         Detect which capture methods are available on this system.
+        Filters GPU-only methods when running in CPU mode.
         
         Returns:
             dict: Dictionary with method availability and details
@@ -80,29 +81,37 @@ class CaptureSettingsTab(TranslatableMixin, QWidget):
             'auto': {'available': True, 'name': 'Auto-detect', 'reason': '', 'performance': ''}  # Always available
         }
         
-        # Check DirectX availability using dxcam (the actual library we use)
-        try:
-            import dxcam
-            # Try to create a test camera
-            test_camera = dxcam.create(device_idx=0, output_idx=0)
-            if test_camera is not None:
-                methods['directx']['available'] = True
-                methods['directx']['reason'] = 'dxcam library available (GPU-accelerated)'
-                methods['directx']['performance'] = '~7-8ms per frame (~140 FPS) - Best for full-screen'
-                del test_camera  # Clean up test camera
-                print("[INFO] DirectX capture: Available via dxcam")
-            else:
+        # Check if running in CPU mode
+        runtime_mode = self.config_manager.get_runtime_mode() if self.config_manager else 'auto'
+        
+        # Check DirectX availability (GPU-only method)
+        if runtime_mode == 'cpu':
+            methods['directx']['available'] = False
+            methods['directx']['reason'] = 'DirectX requires GPU mode (currently in CPU mode)'
+            print("[INFO] DirectX capture: Disabled in CPU mode")
+        else:
+            try:
+                import dxcam
+                # Try to create a test camera
+                test_camera = dxcam.create(device_idx=0, output_idx=0)
+                if test_camera is not None:
+                    methods['directx']['available'] = True
+                    methods['directx']['reason'] = 'dxcam library available (GPU-accelerated)'
+                    methods['directx']['performance'] = '~7-8ms per frame (~140 FPS) - Best for full-screen'
+                    del test_camera  # Clean up test camera
+                    print("[INFO] DirectX capture: Available via dxcam")
+                else:
+                    methods['directx']['available'] = False
+                    methods['directx']['reason'] = 'dxcam failed to create camera'
+                    print("[INFO] DirectX capture: dxcam camera creation failed")
+            except ImportError:
                 methods['directx']['available'] = False
-                methods['directx']['reason'] = 'dxcam failed to create camera'
-                print("[INFO] DirectX capture: dxcam camera creation failed")
-        except ImportError:
-            methods['directx']['available'] = False
-            methods['directx']['reason'] = 'dxcam library not installed (pip install dxcam)'
-            print("[INFO] DirectX capture: dxcam not installed")
-        except Exception as e:
-            methods['directx']['available'] = False
-            methods['directx']['reason'] = f'DirectX initialization failed: {str(e)}'
-            print(f"[INFO] DirectX capture: Not available ({e})")
+                methods['directx']['reason'] = 'dxcam library not installed (pip install dxcam)'
+                print("[INFO] DirectX capture: dxcam not installed")
+            except Exception as e:
+                methods['directx']['available'] = False
+                methods['directx']['reason'] = f'DirectX initialization failed: {str(e)}'
+                print(f"[INFO] DirectX capture: Not available ({e})")
         
         # Check Screenshot methods availability
         screenshot_methods = []
@@ -202,6 +211,20 @@ class CaptureSettingsTab(TranslatableMixin, QWidget):
         layout = QVBoxLayout(group)
         layout.setSpacing(10)
         layout.setContentsMargins(15, 20, 15, 15)
+        
+        # CPU Mode Warning (if applicable)
+        runtime_mode = self.config_manager.get_runtime_mode() if self.config_manager else 'auto'
+        if runtime_mode == 'cpu':
+            cpu_warning = QLabel(
+                "⚠️ <b>CPU Mode Active</b> - GPU-accelerated capture methods are disabled. "
+                "Only CPU-compatible screenshot methods are available."
+            )
+            cpu_warning.setWordWrap(True)
+            cpu_warning.setStyleSheet(
+                "background-color: #FFF3CD; color: #856404; padding: 10px; "
+                "border-radius: 4px; border: 1px solid #FFE69C; font-size: 9pt;"
+            )
+            layout.addWidget(cpu_warning)
         
         # Method label with Available count
         method_header_layout = QHBoxLayout()

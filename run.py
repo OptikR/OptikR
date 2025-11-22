@@ -57,6 +57,110 @@ _current_dir = Path(__file__).parent
 if str(_current_dir) not in sys.path:
     sys.path.insert(0, str(_current_dir))
 
+
+# ============================================================================
+# PYTORCH AUTO-INSTALLATION: Install PyTorch on first run if not present
+# ============================================================================
+def check_and_install_pytorch():
+    """
+    Check if PyTorch is installed. If not, auto-install CPU version.
+    This ensures the app works on all systems without manual PyTorch installation.
+    
+    Returns:
+        tuple: (success: bool, is_gpu: bool, message: str)
+    """
+    try:
+        import torch
+        is_gpu = torch.cuda.is_available()
+        version = torch.__version__
+        
+        if is_gpu:
+            gpu_name = torch.cuda.get_device_name(0)
+            print(f"[INFO] PyTorch {version} detected with GPU: {gpu_name}")
+        else:
+            print(f"[INFO] PyTorch {version} detected (CPU mode)")
+        
+        return True, is_gpu, f"PyTorch {version} ready"
+        
+    except ImportError:
+        print("\n" + "="*70)
+        print("[FIRST RUN] PyTorch not found - Installing CPU version...")
+        print("This is a one-time setup and will take 2-3 minutes.")
+        print("="*70 + "\n")
+        
+        try:
+            import subprocess
+            
+            # Install CPU version (works on all systems, ~200MB download)
+            cmd = [
+                sys.executable, '-m', 'pip', 'install',
+                'torch', 'torchvision', 'torchaudio',
+                '--index-url', 'https://download.pytorch.org/whl/cpu'
+            ]
+            
+            print("[INFO] Running: pip install torch torchvision torchaudio (CPU version)")
+            print("[INFO] Please wait...")
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            
+            if result.returncode == 0:
+                print("\n[SUCCESS] PyTorch CPU installed successfully!")
+                print("[INFO] Restarting application to load PyTorch...\n")
+                
+                # Restart the application to load the newly installed PyTorch
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+                
+            else:
+                error_msg = result.stderr if result.stderr else "Unknown error"
+                print(f"\n[ERROR] PyTorch installation failed: {error_msg}")
+                return False, False, f"Installation failed: {error_msg}"
+                
+        except subprocess.TimeoutExpired:
+            print("\n[ERROR] PyTorch installation timed out (network issue?)")
+            return False, False, "Installation timed out"
+        except Exception as e:
+            print(f"\n[ERROR] PyTorch installation error: {e}")
+            return False, False, f"Installation error: {e}"
+    
+    except Exception as e:
+        print(f"[ERROR] PyTorch check failed: {e}")
+        return False, False, f"Check failed: {e}"
+
+
+# Check and install PyTorch before any imports that depend on it
+_pytorch_success, _pytorch_gpu, _pytorch_msg = check_and_install_pytorch()
+
+if not _pytorch_success:
+    print("\n" + "="*70)
+    print("[CRITICAL] PyTorch installation failed!")
+    print("="*70)
+    print("\nPlease install PyTorch manually:")
+    print("\nFor CPU-only systems:")
+    print("  pip install -r requirements-cpu.txt")
+    print("\nFor GPU systems (NVIDIA CUDA required):")
+    print("  pip install -r requirements-gpu.txt")
+    print("\n" + "="*70 + "\n")
+    
+    # Show error dialog if GUI is available
+    try:
+        from PyQt6.QtWidgets import QApplication, QMessageBox
+        app = QApplication(sys.argv)
+        QMessageBox.critical(
+            None,
+            "PyTorch Installation Required",
+            "PyTorch could not be installed automatically.\n\n"
+            "Please install it manually:\n\n"
+            "CPU-only: pip install -r requirements-cpu.txt\n"
+            "GPU: pip install -r requirements-gpu.txt\n\n"
+            f"Error: {_pytorch_msg}"
+        )
+    except:
+        pass
+    
+    sys.exit(1)
+
+# ============================================================================
+
 # Import structured logger
 from app.utils.structured_logger import create_structured_logger, LoggingConfiguration
 
@@ -88,7 +192,7 @@ def create_installation_info():
     
     install_info = {
         'created': datetime.now().isoformat(),
-        'version': '1.0.0',
+        'version': '0.1.1',
         'cuda': {
             'installed': torch.cuda.is_available(),
             'path': os.environ.get('CUDA_HOME', os.environ.get('CUDA_PATH', '')),
@@ -1034,7 +1138,7 @@ class StyleTestWindow(QMainWindow):
             config_data = self.config_manager.config
             
             # Add metadata
-            version = self.config_manager.get_setting('ui.version', '0.1.0')
+            version = self.config_manager.get_setting('ui.version', '0.1.1')
             export_data = {
                 'metadata': {
                     'export_date': datetime.now().isoformat(),

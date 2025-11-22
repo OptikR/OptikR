@@ -328,9 +328,37 @@ class CapturePluginManager:
             traceback.print_exc()
             return {'error': str(e)}
     
-    def get_available_plugins(self) -> List[str]:
-        """Get list of available plugin names."""
-        return [p.name for p in self.discovered_plugins]
+    def get_available_plugins(self, config_manager=None) -> List[str]:
+        """
+        Get list of available plugin names, filtered by runtime mode.
+        GPU-only plugins (like dxcam) are hidden in CPU mode.
+        
+        Args:
+            config_manager: Optional config manager to check runtime mode
+            
+        Returns:
+            List of available plugin names
+        """
+        all_plugins = [p.name for p in self.discovered_plugins]
+        
+        # If no config manager, return all plugins
+        if not config_manager:
+            return all_plugins
+        
+        # Check runtime mode
+        runtime_mode = config_manager.get_runtime_mode()
+        
+        # GPU-only plugins that require CUDA/DirectX
+        gpu_only_plugins = ['dxcam_capture_gpu', 'directx_capture']
+        
+        # Filter out GPU plugins in CPU mode
+        if runtime_mode == 'cpu':
+            filtered = [p for p in all_plugins if p not in gpu_only_plugins]
+            if len(filtered) < len(all_plugins):
+                self.logger.info(f"[CPU Mode] Filtered out GPU-only capture methods: {set(all_plugins) - set(filtered)}")
+            return filtered
+        
+        return all_plugins
     
     def get_active_plugin(self) -> Optional[str]:
         """Get name of currently active plugin."""
