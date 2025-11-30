@@ -15,8 +15,13 @@ PyQt6-sip>=13.5.0
 # OCR Engines
 easyocr>=1.7.0
 paddleocr>=2.7.0
+paddlex[ocr]  # Required for PaddleOCR 3.x
 manga-ocr>=0.1.11
 pytesseract>=0.3.10
+
+# PaddleOCR Dependencies
+httpx>=0.24.0  # Required for PaddleOCR model downloads
+shapely>=2.0.0  # Required for PaddleOCR text detection
 
 # Translation
 transformers>=4.30.0
@@ -74,6 +79,7 @@ py-cpuinfo>=9.0.0
 # Text Processing
 textdistance>=4.5.0
 pyspellchecker>=0.7.2
+python-Levenshtein>=0.21.0  # Optional: Speeds up textdistance calculations significantly
 
 # Performance Monitoring
 nvidia-ml-py3>=7.352.0

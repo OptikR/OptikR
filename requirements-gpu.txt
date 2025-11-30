@@ -7,3 +7,6 @@
 torch>=2.0.0
 torchvision>=0.15.0
 torchaudio>=2.0.0
+
+# PaddlePaddle GPU (CUDA 12.x)
+paddlepaddle-gpu>=2.5.0
