@@ -128,6 +128,18 @@ class LibreTranslateEngine(AbstractTranslationEngine):
                 json=payload,
                 timeout=10
             )
+            
+            # Check for API key requirement
+            if response.status_code == 400:
+                error_data = response.json()
+                error_msg = error_data.get('error', '')
+                if 'API key' in error_msg or 'api key' in error_msg.lower():
+                    raise RuntimeError(
+                        "LibreTranslate requires an API key. "
+                        "Visit https://portal.libretranslate.com to get a free API key, "
+                        "then add it to your configuration under 'translation.libretranslate_api_key'"
+                    )
+            
             response.raise_for_status()
             
             result_data = response.json()

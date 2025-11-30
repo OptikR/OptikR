@@ -244,8 +244,9 @@ class OCRPluginManager(IPluginManager):
         """
         discovered_plugins = []
         
-        # First, auto-generate missing plugins for installed packages
-        self._auto_generate_missing_plugins()
+        # DISABLED: Auto-generation causes conflicts with existing plugins
+        # Use pre-built plugins instead (easyocr, paddleocr, tesseract, manga_ocr, hybrid_ocr)
+        # self._auto_generate_missing_plugins()
         
         for directory in self._plugin_directories:
             if not os.path.exists(directory):

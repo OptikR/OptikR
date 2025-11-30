@@ -216,7 +216,8 @@ class IntelligentTextProcessor:
     
     def _validate_text(self, text: str, ocr_confidence: float) -> Tuple[bool, float, str]:
         """
-        Validate text quality.
+        Validate text quality - BASIC validation only.
+        Length and advanced validation should be done by the plugin wrapper.
         
         Args:
             text: Text to validate
@@ -230,35 +231,47 @@ class IntelligentTextProcessor:
         
         text = text.strip()
         
-        # Minimum length check (allow single-letter valid words like "I" and "A")
-        if len(text) < 2 and text.upper() not in ['I', 'A']:
-            return False, 0.0, "Too short"
+        # Check for CJK characters first (Japanese, Chinese, Korean)
+        has_cjk = bool(re.search(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]', text))
         
-        # Must contain letters
-        if not re.search(r'[a-zA-Z]', text):
+        # NO LENGTH CHECK HERE - let the plugin handle it with configurable min_word_length
+        # This allows the plugin's config to actually work
+        
+        # Must contain letters (English or Unicode letters like Japanese/Chinese/Korean)
+        # Check for English letters OR any Unicode letter characters
+        has_english = re.search(r'[a-zA-Z]', text)
+        has_unicode_letters = has_cjk
+        
+        if not has_english and not has_unicode_letters:
             return False, 0.0, "No letters"
         
         # Calculate confidence
         confidence = 0.0
         reasons = []
         
-        # Check for common words (also check without apostrophes for contractions)
-        words = text.lower().split()
-        common_count = 0
-        for w in words:
-            w_clean = w.strip('.,!?;:')
-            # Check as-is
-            if w_clean in self.common_words:
-                common_count += 1
-            # Also check without apostrophes/special chars (for contractions with encoding issues)
-            elif w_clean.replace("'", "").replace("æ", "").replace("â€™", "") in self.common_words:
-                common_count += 1
-        
-        if words:
-            common_ratio = common_count / len(words)
-            confidence += common_ratio * 0.4
-            if common_count > 0:
-                reasons.append(f"{common_count} common words")
+        # Use the has_cjk flag we already calculated above
+        if has_cjk:
+            # For CJK text, give high confidence automatically
+            confidence += 0.8
+            reasons.append("CJK characters detected")
+        else:
+            # For English text, check common words
+            words = text.lower().split()
+            common_count = 0
+            for w in words:
+                w_clean = w.strip('.,!?;:')
+                # Check as-is
+                if w_clean in self.common_words:
+                    common_count += 1
+                # Also check without apostrophes/special chars (for contractions with encoding issues)
+                elif w_clean.replace("'", "").replace("æ", "").replace("â€™", "") in self.common_words:
+                    common_count += 1
+            
+            if words:
+                common_ratio = common_count / len(words)
+                confidence += common_ratio * 0.4
+                if common_count > 0:
+                    reasons.append(f"{common_count} common words")
         
         # Check dictionary if available
         if self.dict_engine and words:

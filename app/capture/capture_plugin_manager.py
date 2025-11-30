@@ -48,8 +48,9 @@ class CapturePluginManager:
         Returns:
             List of discovered plugin metadata objects
         """
-        # First, auto-generate missing plugins for installed packages
-        self._auto_generate_missing_plugins()
+        # DISABLED: Auto-generation causes conflicts with existing plugins
+        # Use pre-built plugins instead (screenshot_capture_cpu, dxcam_capture_gpu)
+        # self._auto_generate_missing_plugins()
         
         discovered = []
         

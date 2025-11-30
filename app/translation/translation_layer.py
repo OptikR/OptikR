@@ -266,12 +266,22 @@ class TranslationLayer(ITranslationLayer):
             engine_name = engine.value
             translation_engine = self._engine_registry.get_engine(engine_name)
             
+            # If engine not loaded, try to load it from plugins
             if not translation_engine or not translation_engine.is_available():
-                # Try fallback engines
-                translation_engine = self._get_fallback_engine(src_lang, tgt_lang)
-                if not translation_engine:
-                    raise RuntimeError(f"No available translation engine for {src_lang} -> {tgt_lang}")
-                engine_name = translation_engine.engine_name
+                self._logger.info(f"Engine {engine_name} not loaded, attempting to load from plugins...")
+                
+                # Try to load the plugin
+                if self.load_engine(engine_name):
+                    translation_engine = self._engine_registry.get_engine(engine_name)
+                    self._logger.info(f"Successfully loaded engine plugin: {engine_name}")
+                
+                # If still not available, try fallback engines
+                if not translation_engine or not translation_engine.is_available():
+                    self._logger.warning(f"Engine {engine_name} not available, trying fallback engines...")
+                    translation_engine = self._get_fallback_engine(src_lang, tgt_lang)
+                    if not translation_engine:
+                        raise RuntimeError(f"No available translation engine for {src_lang} -> {tgt_lang}")
+                    engine_name = translation_engine.engine_name
             
             # Perform translation
             result = translation_engine.translate_text(text, src_lang, tgt_lang, translation_options)

@@ -210,10 +210,26 @@ class PluginCaptureLayer(ICaptureLayer):
                 'directx': 'dxcam_capture_gpu',
                 'dxcam': 'dxcam_capture_gpu',
                 'screenshot': 'screenshot_capture_cpu',
-                'auto': 'dxcam_capture_gpu'  # Default to dxcam
             }
             
-            plugin_name = plugin_map.get(mode.lower())
+            # Handle auto mode intelligently based on runtime mode
+            if mode.lower() == 'auto':
+                # Check runtime mode and available plugins (pass config_manager for filtering)
+                available_plugins = self.plugin_manager.get_available_plugins(self.config_manager)
+                
+                # Prefer GPU capture if available and in GPU mode
+                if self.runtime_mode == 'gpu' and 'dxcam_capture_gpu' in available_plugins:
+                    plugin_name = 'dxcam_capture_gpu'
+                    self.logger.info(f"Auto mode: Selected dxcam_capture_gpu (GPU mode)")
+                # Fall back to CPU capture
+                elif 'screenshot_capture_cpu' in available_plugins:
+                    plugin_name = 'screenshot_capture_cpu'
+                    self.logger.info(f"Auto mode: Selected screenshot_capture_cpu (CPU mode or GPU unavailable)")
+                else:
+                    self.logger.error("Auto mode: No capture plugins available")
+                    return False
+            else:
+                plugin_name = plugin_map.get(mode.lower())
             
             if not plugin_name:
                 self.logger.error(f"Unknown capture mode: {mode}")
@@ -252,15 +268,19 @@ class PluginCaptureLayer(ICaptureLayer):
         Returns:
             List[str]: List of supported capture mode names
         """
-        # Get available plugins
-        plugins = self.plugin_manager.get_available_plugins()
+        # Get available plugins (pass config_manager for runtime mode filtering)
+        plugins = self.plugin_manager.get_available_plugins(self.config_manager)
         
         # Map plugin names to mode names
         modes = []
         if 'dxcam_capture_gpu' in plugins:
-            modes.extend(['directx', 'dxcam', 'auto'])
+            modes.extend(['directx', 'dxcam'])
         if 'screenshot_capture_cpu' in plugins:
             modes.append('screenshot')
+        
+        # Auto mode is always available if any plugin is available
+        if plugins:
+            modes.append('auto')
         
         return modes
     
@@ -321,7 +341,7 @@ class PluginCaptureLayer(ICaptureLayer):
         stats = self._stats.copy()
         stats.update({
             'active_plugin': self.plugin_manager.get_active_plugin(),
-            'available_plugins': self.plugin_manager.get_available_plugins(),
+            'available_plugins': self.plugin_manager.get_available_plugins(self.config_manager),
             'loaded_plugins': self.plugin_manager.get_loaded_plugins(),
             'frame_rate': self._frame_rate,
             'performance_profile': self._performance_profile.value
