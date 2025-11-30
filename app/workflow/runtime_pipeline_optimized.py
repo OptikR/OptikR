@@ -334,23 +334,21 @@ class OptimizedRuntimePipeline:
         print("[OPTIMIZED PIPELINE] Initializing positioning system...")
         self.positioning_system = None
         try:
-            from app.overlay.automatic_positioning import (
-                AutomaticPositioningSystem, AutomaticPositioningConfig,
-                PositioningStrategy, WrappingStrategy
+            from app.overlay.intelligent_positioning import (
+                IntelligentPositioningEngine, PositioningContext, PositioningMode
             )
             
-            pos_config = AutomaticPositioningConfig()
-            pos_config.positioning_strategy = PositioningStrategy.SMART_PLACEMENT
-            pos_config.text_sizing.adaptive_scaling = True
-            pos_config.text_sizing.content_aware_sizing = True
-            pos_config.wrapping.strategy = WrappingStrategy.INTELLIGENT_WRAP
-            pos_config.collision_detection.enabled = True
-            pos_config.dynamic_adaptation.movement_tracking = True
+            # Create positioning context with screen bounds
+            pos_context = PositioningContext(
+                screen_width=2560,  # Will be updated from actual screen
+                screen_height=1440,
+            )
             
-            self.positioning_system = AutomaticPositioningSystem(pos_config)
+            self.positioning_system = IntelligentPositioningEngine(pos_context)
+            self.positioning_mode = PositioningMode.INTELLIGENT
             self.active_overlays = []
-            self.logger.info("Smart positioning system initialized")
-            print("[OPTIMIZED PIPELINE] Positioning system initialized")
+            self.logger.info("Intelligent positioning system initialized")
+            print("[OPTIMIZED PIPELINE] ✓ Intelligent positioning system initialized")
         except Exception as e:
             self.logger.warning(f"Failed to initialize positioning system: {e}")
             print(f"[OPTIMIZED PIPELINE] Positioning system failed: {e}")
@@ -512,8 +510,8 @@ class OptimizedRuntimePipeline:
                 print("[PLUGIN CONFIG] Text Block Merger: Disabled by user")
                 self.text_block_merger = None
             else:
-                h_threshold = self.config_manager.get_setting('pipeline.plugins.text_block_merger.horizontal_threshold', 50)
-                v_threshold = self.config_manager.get_setting('pipeline.plugins.text_block_merger.vertical_threshold', 30)
+                h_threshold = self.config_manager.get_setting('pipeline.plugins.text_block_merger.horizontal_threshold', 15)
+                v_threshold = self.config_manager.get_setting('pipeline.plugins.text_block_merger.vertical_threshold', 20)
                 strategy = self.config_manager.get_setting('pipeline.plugins.text_block_merger.merge_strategy', 'smart')
                 
                 if hasattr(self.text_block_merger, 'configure'):
@@ -1215,45 +1213,40 @@ class OptimizedRuntimePipeline:
             # Mask overlay regions to prevent OCR feedback loop
             frame_image = frame_data['frame'].copy()  # Don't modify original
             
-            # Get capture region offset
-            region_x = 0
-            region_y = 0
-            if self.config.capture_region:
-                region_x = self.config.capture_region.rectangle.x
-                region_y = self.config.capture_region.rectangle.y
-            
             # Mask out overlay positions (prevent OCR from detecting overlay text)
+            # NOTE: active_overlays already contains capture-region-relative coordinates
             masked_count = 0
             with self.overlay_position_lock:
                 for overlay_rect in self.active_overlays:
                     try:
-                        # Convert absolute screen coordinates to capture-region-relative
-                        rel_x = overlay_rect.x - region_x
-                        rel_y = overlay_rect.y - region_y
+                        # Overlay positions are already relative to capture region
+                        # Add LARGE padding to ensure full overlay is masked (overlays are much larger than text)
+                        # Overlays have background, borders, and padding around text
+                        padding = 30  # Increased from 10 to 30
+                        x1 = max(0, overlay_rect.x - padding)
+                        y1 = max(0, overlay_rect.y - padding)
+                        x2 = min(frame_image.shape[1], overlay_rect.x + overlay_rect.width + padding * 2)
+                        y2 = min(frame_image.shape[0], overlay_rect.y + overlay_rect.height + padding * 2)
                         
-                        # Check if overlay is within capture region
-                        if (rel_x >= 0 and rel_y >= 0 and 
-                            rel_x < frame_image.shape[1] and rel_y < frame_image.shape[0]):
-                            
-                            # Calculate mask bounds (ensure within frame)
-                            x1 = max(0, rel_x)
-                            y1 = max(0, rel_y)
-                            x2 = min(frame_image.shape[1], rel_x + overlay_rect.width)
-                            y2 = min(frame_image.shape[0], rel_y + overlay_rect.height)
-                            
-                            # Mask overlay area (set to black to prevent OCR detection)
-                            if x2 > x1 and y2 > y1:
-                                frame_image[y1:y2, x1:x2] = 0
-                                masked_count += 1
+                        # Mask overlay area (set to black to prevent OCR detection)
+                        if x2 > x1 and y2 > y1:
+                            frame_image[y1:y2, x1:x2] = 0
+                            masked_count += 1
                     except Exception as e:
                         self.logger.debug(f"Failed to mask overlay region: {e}")
             
-            if masked_count > 0:
-                if self.frames_processed % 10 == 1:
-                    print(f"[OCR] Masked {masked_count} overlay regions to prevent feedback loop")
-            elif len(self.active_overlays) > 0:
-                # Overlays exist but weren't masked - debug this
-                print(f"[OCR WARNING] {len(self.active_overlays)} overlays tracked but 0 masked! Check coordinates.")
+            # Always log masking status
+            if self.frames_processed % 10 == 1 or self.frames_processed <= 5:
+                if masked_count > 0:
+                    print(f"[MASKING] ✓ Masked {masked_count}/{len(self.active_overlays)} overlay regions")
+                elif len(self.active_overlays) > 0:
+                    print(f"[MASKING] ✗ {len(self.active_overlays)} overlays tracked but 0 masked!")
+                    if self.active_overlays:
+                        first = self.active_overlays[0]
+                        print(f"[MASKING DEBUG] First overlay: x={first.x}, y={first.y}, w={first.width}, h={first.height}")
+                        print(f"[MASKING DEBUG] Frame size: {frame_image.shape[1]}x{frame_image.shape[0]}")
+                else:
+                    print(f"[MASKING] No overlays to mask yet")
             
             # Create Frame object from masked frame_data
             from app.models import Frame
@@ -1263,7 +1256,7 @@ class OptimizedRuntimePipeline:
                 source_region=frame_data['region']
             )
             
-            # Extract text using OCR (language is handled by the OCR engine internally)
+            # Extract text using OCR (grid-based, full page - BEST QUALITY)
             text_blocks = self.ocr_layer.extract_text(frame)
             
             # Apply intelligent text processor for OCR error correction (| → I, etc.)
@@ -1277,6 +1270,11 @@ class OptimizedRuntimePipeline:
                             'bbox': [block.position.x, block.position.y, block.position.width, block.position.height],
                             'confidence': block.confidence
                         } for block in text_blocks]
+                        
+                        # DEBUG: Log OCR positions
+                        if self.frames_processed % 10 == 1:
+                            for i, block in enumerate(text_blocks[:3]):  # Log first 3
+                                print(f"[OCR DEBUG] Block {i}: text='{block.text[:20]}...' pos=({block.position.x},{block.position.y}) size={block.position.width}x{block.position.height}")
                         
                         processor_data = {'texts': texts_data}
                         processed_data = intelligent_processor.process(processor_data)
@@ -1303,7 +1301,8 @@ class OptimizedRuntimePipeline:
                         import traceback
                         traceback.print_exc()
             
-            # Use text block merger plugin (simpler, more reliable)
+            # Use text block merger plugin - it already calculates the bounding box correctly!
+            # The merger combines nearby text and returns the bounding box that encompasses all merged characters
             if self.text_block_merger and text_blocks:
                 merger_data = {
                     'texts': [{
@@ -1315,6 +1314,7 @@ class OptimizedRuntimePipeline:
                 merged_data = self.text_block_merger.process(merger_data)
                 
                 # Convert back to TextBlock objects
+                # The merger already calculated the correct bounding box for merged text!
                 from app.models import TextBlock, Rectangle
                 text_blocks = [
                     TextBlock(
@@ -1329,6 +1329,9 @@ class OptimizedRuntimePipeline:
                     )
                     for item in merged_data.get('texts', [])
                 ]
+                
+                if self.frames_processed % 10 == 1:
+                    print(f"[POSITIONING] Using merged bounding boxes for {len(text_blocks)} text blocks")
             
             if text_blocks:
                 return {
@@ -1345,6 +1348,44 @@ class OptimizedRuntimePipeline:
             self.logger.error(f"OCR error: {e}")
         
         return None
+    
+    def _is_html_like(self, text: str) -> bool:
+        """
+        Check if text looks like HTML tags (common MarianMT issue).
+        
+        Returns True if text appears to be HTML formatting rather than actual translation.
+        """
+        if not text:
+            return False
+        
+        text = text.strip()
+        
+        # Check for common HTML patterns
+        if text.startswith('<') and text.endswith('>'):
+            # Looks like an HTML tag
+            return True
+        
+        # Check if it's only HTML tags with no actual content
+        import re
+        # Remove all HTML tags
+        text_without_tags = re.sub(r'<[^>]+>', '', text).strip()
+        if not text_without_tags:
+            # Only HTML tags, no actual text
+            return True
+        
+        # Check for common empty HTML patterns
+        empty_patterns = [
+            r'^<i>\s*</i>$',
+            r'^<b>\s*</b>$',
+            r'^<em>\s*</em>$',
+            r'^<strong>\s*</strong>$',
+            r'^<span>\s*</span>$',
+        ]
+        for pattern in empty_patterns:
+            if re.match(pattern, text, re.IGNORECASE):
+                return True
+        
+        return False
     
     def _run_translation(self, ocr_result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Run translation with intelligent dictionary lookup and cache support."""
@@ -1437,8 +1478,43 @@ class OptimizedRuntimePipeline:
                         else:
                             translated_text = result.get('translated_text', '').strip()
                             
+                            # Filter out HTML-like translations (common MarianMT issue)
+                            if translated_text and self._is_html_like(translated_text):
+                                print(f"[TRANSLATION FILTER] Rejected HTML-like translation: '{translated_text}' for '{text}'")
+                                print(f"[TRANSLATION FILTER] Retrying translation with modified text...")
+                                
+                                # Retry with modified text (add context to help the model)
+                                # For short text like "第１５話", add context
+                                retry_text = text
+                                if len(text) <= 10:
+                                    # Short text - try adding context
+                                    retry_text = f"Title: {text}"
+                                
+                                retry_result = self.translation_layer.translate_subprocess(
+                                    retry_text,
+                                    source_lang=source_lang,
+                                    target_lang=target_lang,
+                                    timeout=15.0
+                                )
+                                
+                                if not retry_result.get('error'):
+                                    retry_translation = retry_result.get('translated_text', '').strip()
+                                    # Remove the "Title: " prefix if we added it
+                                    if retry_text.startswith("Title: "):
+                                        retry_translation = retry_translation.replace("Title: ", "").strip()
+                                    
+                                    if retry_translation and not self._is_html_like(retry_translation):
+                                        print(f"[TRANSLATION FILTER] ✓ Retry successful: '{retry_translation}'")
+                                        translated_text = retry_translation
+                                    else:
+                                        print(f"[TRANSLATION FILTER] ✗ Retry also failed, using original text")
+                                        translated_text = text  # Give up, use original
+                                else:
+                                    print(f"[TRANSLATION FILTER] ✗ Retry failed, using original text")
+                                    translated_text = text
+                            
                             # Save to cache and dictionary for next time
-                            if translated_text:
+                            if translated_text and translated_text != text:
                                 # Save to cache
                                 if self.translation_cache:
                                     cache_data = {
@@ -1485,11 +1561,12 @@ class OptimizedRuntimePipeline:
                                 
                                 if translated_text and translated_text.strip():
                                     # Get position from block
+                                    # Get position from TextBlock (position is a Rectangle object)
                                     bbox = None
-                                    if hasattr(block, 'bbox'):
-                                        bbox = block.bbox
-                                    elif hasattr(block, 'position'):
+                                    if hasattr(block, 'position') and block.position:
                                         bbox = block.position
+                                    elif hasattr(block, 'bbox'):
+                                        bbox = block.bbox
                                     elif hasattr(block, 'bounding_box'):
                                         bbox = block.bounding_box
                                     
@@ -1549,11 +1626,12 @@ class OptimizedRuntimePipeline:
                             source = translation_data.get('translation_source', 'chain')
                             # Skip to next block
                             if translated_text:
+                                # Get position from TextBlock (position is a Rectangle object)
                                 bbox = None
-                                if hasattr(block, 'bbox'):
-                                    bbox = block.bbox
-                                elif hasattr(block, 'position'):
+                                if hasattr(block, 'position') and block.position:
                                     bbox = block.position
+                                elif hasattr(block, 'bbox'):
+                                    bbox = block.bbox
                                 elif hasattr(block, 'bounding_box'):
                                     bbox = block.bounding_box
                                 
@@ -1785,11 +1863,12 @@ class OptimizedRuntimePipeline:
                 # Only add if translated_text is not empty (strict check)
                 if translated_text and translated_text.strip():
                     # Get position/bbox from block (different OCR engines use different attributes)
+                    # Get position from TextBlock (position is a Rectangle object)
                     bbox = None
-                    if hasattr(block, 'bbox'):
-                        bbox = block.bbox
-                    elif hasattr(block, 'position'):
+                    if hasattr(block, 'position') and block.position:
                         bbox = block.position
+                    elif hasattr(block, 'bbox'):
+                        bbox = block.bbox
                     elif hasattr(block, 'bounding_box'):
                         bbox = block.bounding_box
                     
@@ -1862,6 +1941,9 @@ class OptimizedRuntimePipeline:
             if self.config.capture_region:
                 region_x = self.config.capture_region.rectangle.x
                 region_y = self.config.capture_region.rectangle.y
+                # Debug: Log region offset (only every 10 frames to avoid spam)
+                if self.frames_processed % 10 == 1:
+                    print(f"[OVERLAY DEBUG] Capture region offset: ({region_x}, {region_y})")
             
             # Apply smart positioning if available
             if self.positioning_system:
@@ -1914,18 +1996,35 @@ class OptimizedRuntimePipeline:
                 # Calculate optimal positions (only if we have valid translations)
                 if positioned_translations:
                     try:
-                        positioned_translations = self.positioning_system.calculate_optimal_overlay_positions(
+                        # DEBUG: Log positions before smart positioning
+                        if self.frames_processed <= 3:
+                            print(f"[POSITIONING DEBUG] Before smart positioning: {len(positioned_translations)} translations")
+                            for i, trans in enumerate(positioned_translations[:3]):  # Show first 3
+                                if hasattr(trans, 'position'):
+                                    print(f"  Translation {i}: position=({trans.position.x}, {trans.position.y})")
+                        
+                        # Use intelligent positioning with collision avoidance
+                        positioned_translations = self.positioning_system.calculate_optimal_positions(
                             positioned_translations,
-                            frame=None,  # Frame not needed for basic positioning
-                            existing_overlays=self.active_overlays if self.active_overlays else [],
-                            ui_elements=[]
+                            frame=None,
+                            mode=self.positioning_mode if hasattr(self, 'positioning_mode') else None
                         )
+                        
+                        # DEBUG: Log positions after smart positioning
+                        if self.frames_processed <= 3:
+                            print(f"[POSITIONING DEBUG] After smart positioning: {len(positioned_translations)} translations")
+                            for i, trans in enumerate(positioned_translations[:3]):  # Show first 3
+                                if hasattr(trans, 'position'):
+                                    print(f"  Translation {i}: position=({trans.position.x}, {trans.position.y})")
                     except Exception as e:
-                        # Silently fall back to original positions
+                        # Fall back to original positions
                         # Don't log "empty text" errors as they're expected
                         error_msg = str(e).lower()
                         if "empty" not in error_msg and "cannot be empty" not in error_msg:
                             self.logger.warning(f"Smart positioning failed: {e}")
+                            if self.frames_processed <= 3:
+                                print(f"[POSITIONING DEBUG] Smart positioning FAILED: {e}")
+                                print(f"[POSITIONING DEBUG] Falling back to original positions")
                         # On error, just use the translations we already created
                         pass
                 else:
@@ -1939,12 +2038,22 @@ class OptimizedRuntimePipeline:
                         continue
                     
                     bbox = trans.get('bbox')
-                    # Handle different bbox formats
+                    # Handle different bbox formats - use CENTER of bbox for better positioning
                     if bbox:
-                        if isinstance(bbox, (list, tuple)) and len(bbox) >= 2:
-                            x, y = int(bbox[0]), int(bbox[1])  # Convert to int
+                        if isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
+                            # bbox = [x, y, width, height] - use center
+                            x = int(bbox[0] + bbox[2] / 2)
+                            y = int(bbox[1] + bbox[3] / 2)
+                        elif isinstance(bbox, (list, tuple)) and len(bbox) >= 2:
+                            # bbox = [x, y] - use as-is
+                            x, y = int(bbox[0]), int(bbox[1])
                         elif hasattr(bbox, 'x') and hasattr(bbox, 'y'):
-                            x, y = int(bbox.x), int(bbox.y)  # Convert to int
+                            # Rectangle object - use center if width/height available
+                            if hasattr(bbox, 'width') and hasattr(bbox, 'height'):
+                                x = int(bbox.x + bbox.width / 2)
+                                y = int(bbox.y + bbox.height / 2)
+                            else:
+                                x, y = int(bbox.x), int(bbox.y)
                         else:
                             x, y = 0, 0
                     else:
@@ -1959,7 +2068,8 @@ class OptimizedRuntimePipeline:
                     positioned_translations.append(TranslationObj(trans['translated'], x, y))
             
             # Display overlays
-            self.active_overlays = []
+            # DON'T clear active_overlays - we need them for masking on next frame!
+            new_overlays = []
             displayed_count = 0
             
             # Get screen bounds for boundary checking
@@ -1971,6 +2081,15 @@ class OptimizedRuntimePipeline:
                 # Get position (ensure integers)
                 ocr_x = int(trans.position.x) if hasattr(trans.position, 'x') else 0
                 ocr_y = int(trans.position.y) if hasattr(trans.position, 'y') else 0
+                
+                # Add small vertical offset to prevent overlapping (simple collision avoidance)
+                # Only apply if overlays are close together
+                if i > 0:
+                    prev_trans = positioned_translations[i-1]
+                    prev_y = int(prev_trans.position.y) if hasattr(prev_trans.position, 'y') else 0
+                    # If within 50px vertically, add offset
+                    if abs(ocr_y - prev_y) < 50:
+                        ocr_y = prev_y + 45  # Offset by overlay height
                 
                 # Convert to absolute screen coordinates (ensure integers)
                 abs_x = int(region_x + ocr_x)
@@ -1988,7 +2107,10 @@ class OptimizedRuntimePipeline:
                 
                 # Log first overlay for debugging
                 if i == 0 and self.frames_processed % 10 == 1:
-                    print(f"[OPTIMIZED] Overlay {i+1}: '{text[:30]}' at OCR({ocr_x},{ocr_y}) -> Screen({abs_x},{abs_y})")
+                    print(f"[OVERLAY DEBUG] Text: '{text[:20]}'")
+                    print(f"[OVERLAY DEBUG] OCR coords (relative to region): ({ocr_x}, {ocr_y})")
+                    print(f"[OVERLAY DEBUG] Region offset: ({region_x}, {region_y})")
+                    print(f"[OVERLAY DEBUG] Final screen coords: ({abs_x}, {abs_y})")
                 
                 # Generate overlay ID based on text content (not position) to prevent duplicates
                 # Use hash of text to create stable ID even if position changes slightly
@@ -2029,23 +2151,33 @@ class OptimizedRuntimePipeline:
                             confidence=1.0
                         )
                 
-                # Track for collision detection (store as Rectangle for positioning system)
+                # Track for collision detection and masking (store as Rectangle with region-relative coords)
                 from app.models import Rectangle
-                if hasattr(trans.position, 'x') and hasattr(trans.position, 'y'):
-                    # If position is already a Rectangle, use it directly
-                    if isinstance(trans.position, Rectangle):
-                        self.active_overlays.append(trans.position)
-                    else:
-                        # Create Rectangle from position attributes
-                        width = trans.position.width if hasattr(trans.position, 'width') else 100
-                        height = trans.position.height if hasattr(trans.position, 'height') else 30
-                        self.active_overlays.append(Rectangle(trans.position.x, trans.position.y, width, height))
-                else:
-                    # Fallback: create Rectangle from absolute coordinates
-                    self.active_overlays.append(Rectangle(abs_x, abs_y, 100, 30))
+                
+                # Store overlay position in region-relative coordinates for masking
+                # ocr_x, ocr_y are already region-relative
+                # Overlays are MUCH larger than text blocks due to background, padding, borders
+                overlay_width = 250  # Increased estimate for overlay width
+                overlay_height = 50  # Increased estimate for overlay height
+                
+                # Try to get actual size from translation if available, then add padding
+                if hasattr(trans, 'position'):
+                    if hasattr(trans.position, 'width'):
+                        overlay_width = trans.position.width * 2  # Double the text width for overlay
+                    if hasattr(trans.position, 'height'):
+                        overlay_height = trans.position.height * 2  # Double the text height for overlay
+                
+                new_overlays.append(Rectangle(ocr_x, ocr_y, overlay_width, overlay_height))
             
-            if self.frames_processed % 10 == 1:
+            # Update active overlays list for next frame's masking
+            self.active_overlays = new_overlays
+            
+            if self.frames_processed % 10 == 1 or self.frames_processed <= 5:
                 print(f"[OPTIMIZED] Displayed {displayed_count} overlays")
+                print(f"[MASKING] Tracking {len(self.active_overlays)} overlay regions for next frame")
+                if len(self.active_overlays) > 0:
+                    first = self.active_overlays[0]
+                    print(f"[MASKING] First overlay to mask: x={first.x}, y={first.y}, w={first.width}, h={first.height}")
             
         except Exception as e:
             self.logger.error(f"Error displaying overlays: {e}")

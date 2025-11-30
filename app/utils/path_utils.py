@@ -127,26 +127,32 @@ def get_config_path(filename: str = 'user_config.json') -> Path:
     """
     Get config file path.
     
-    Supports migration: checks new location first, falls back to old.
+    Always uses new location (user_data/config/).
+    For migration: if old config exists and new doesn't, it will be copied on first load.
     
     Args:
         filename: Config filename (default: 'user_config.json')
     
     Returns:
-        Path: Path to config file
+        Path: Path to config file in user_data/config/
     
     Examples:
         get_config_path()  # -> user_data/config/user_config.json
         get_config_path('custom.json')  # -> user_data/config/custom.json
     """
-    # Check new location first
+    # Always use new location
     new_path = get_user_data_path('config', filename)
-    if new_path.exists():
-        return new_path
     
-    # Fall back to old location during migration
-    old_path = get_app_path('config', filename)
-    return old_path
+    # Migration: if old config exists and new doesn't, copy it
+    if not new_path.exists():
+        old_path = get_app_path('config', filename)
+        if old_path.exists():
+            import shutil
+            new_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(old_path, new_path)
+            print(f"[INFO] Migrated config from {old_path} to {new_path}")
+    
+    return new_path
 
 
 def get_learned_translations_path(source_lang: str, target_lang: str) -> Path:

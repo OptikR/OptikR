@@ -244,26 +244,36 @@ class StartupPipeline:
             print(f"[STARTUP] Loading {ocr_engine} engine...")
             print(f"[STARTUP] (Other engines will load on-demand when you switch to them)")
             
-            # Get GPU setting from config - DEFAULT TO TRUE for better performance
-            use_gpu = True  # Default to GPU enabled
+            # Get GPU setting from config - respect runtime mode detection
+            use_gpu = False  # Default to CPU for safety
             
             if self.config_manager:
-                runtime_mode = self.config_manager.get_setting('performance.runtime_mode', 'gpu')
-                enable_gpu = self.config_manager.get_setting('performance.enable_gpu_acceleration', True)
-                # Also check OCR-specific GPU setting
-                ocr_gpu = self.config_manager.get_setting('ocr.easyocr_config.gpu', True)
+                # Get actual runtime mode (auto-detects GPU availability)
+                runtime_mode = self.config_manager.get_runtime_mode()  # Returns 'cpu' or 'gpu'
                 
-                # Use GPU if any of these conditions are true (or if explicitly disabled)
-                use_gpu = (runtime_mode == 'gpu' or enable_gpu or ocr_gpu == True)
+                # Only use GPU if runtime mode is 'gpu' (meaning GPU is actually available)
+                if runtime_mode == 'gpu':
+                    # Check if GPU is explicitly disabled in settings
+                    enable_gpu = self.config_manager.get_setting('performance.enable_gpu_acceleration', True)
+                    ocr_gpu = self.config_manager.get_setting('ocr.easyocr_config.gpu', True)
+                    use_gpu = enable_gpu and ocr_gpu
+                else:
+                    # CPU mode - never use GPU
+                    use_gpu = False
                 
-                print(f"[STARTUP] GPU mode: {use_gpu} (runtime_mode={runtime_mode}, enable_gpu={enable_gpu}, ocr_gpu={ocr_gpu})")
+                print(f"[STARTUP] GPU mode: {use_gpu} (runtime_mode={runtime_mode})")
             else:
-                print(f"[STARTUP] GPU mode: {use_gpu} (no config_manager, using default)")
+                print(f"[STARTUP] GPU mode: {use_gpu} (no config_manager, using CPU default)")
             
-            # Prepare OCR config with GPU setting
+            # Prepare OCR config with GPU setting and languages
+            ocr_languages = ['en', 'ja']  # Default languages
+            if hasattr(self, 'config_manager') and self.config_manager:
+                ocr_languages = self.config_manager.get_setting('ocr.languages', ['en', 'ja'])
+            
             ocr_config = {
                 'gpu': use_gpu,
-                'language': 'en'  # Default language
+                'language': 'ja' if 'ja' in ocr_languages else 'en',  # Primary language
+                'languages': ocr_languages  # All languages for multi-language support
             }
             
             print(f"[STARTUP] Calling plugin_manager.load_plugin('{ocr_engine}', config={ocr_config})...")
@@ -475,7 +485,13 @@ class StartupPipeline:
                 
                 # Reload the OCR engine
                 try:
-                    ocr_config = {'gpu': True, 'language': 'en'}
+                    # Get languages from config
+                    ocr_languages = self.config_manager.get_setting('ocr.languages', ['en', 'ja'])
+                    ocr_config = {
+                        'gpu': True,
+                        'language': 'ja' if 'ja' in ocr_languages else 'en',  # Primary language
+                        'languages': ocr_languages  # All languages for multi-language support
+                    }
                     success = self.ocr_layer.plugin_manager.load_plugin(config_engine, config=ocr_config)
                     
                     if success:
@@ -538,14 +554,69 @@ class StartupPipeline:
                 print(f"[STARTUP] ✗ OCR layer not initialized")
                 return False
             
-            # Update OCR layer config
-            self.ocr_layer.config.default_engine = engine_name
+            # Clear ALL caches when switching OCR engines
+            # Different OCR engines produce different results
+            print(f"[CACHE] Clearing all caches for OCR engine switch...")
             
-            # Load the new engine plugin if not already loaded
+            # 1. Clear OCR layer cache
+            if self.ocr_layer and hasattr(self.ocr_layer, '_cache') and self.ocr_layer._cache:
+                try:
+                    self.ocr_layer._cache.clear()
+                    print(f"[CACHE] ✓ Cleared OCR layer cache")
+                except Exception as e:
+                    print(f"[CACHE] Warning: Failed to clear OCR cache: {e}")
+            
+            # 2. Clear translation cache
+            if hasattr(self, 'runtime_pipeline') and self.runtime_pipeline:
+                if hasattr(self.runtime_pipeline, 'cache_manager') and self.runtime_pipeline.cache_manager:
+                    try:
+                        # Clear translation cache
+                        if hasattr(self.runtime_pipeline.cache_manager, 'translation_cache'):
+                            self.runtime_pipeline.cache_manager.translation_cache.clear()
+                            print(f"[CACHE] ✓ Cleared translation cache")
+                        # Clear OCR cache if it exists
+                        if hasattr(self.runtime_pipeline.cache_manager, 'ocr_cache'):
+                            self.runtime_pipeline.cache_manager.ocr_cache.clear()
+                            print(f"[CACHE] ✓ Cleared runtime OCR cache")
+                    except Exception as cache_error:
+                        print(f"[CACHE] Warning: Failed to clear runtime cache: {cache_error}")
+            
+            # Force unload the old plugin instance from registry
+            print(f"[STARTUP] Unloading old {engine_name} plugin instance...")
+            try:
+                if self.ocr_layer and self.ocr_layer.plugin_manager:
+                    # Unload the plugin to remove cached engine instance
+                    self.ocr_layer.plugin_manager.unload_plugin(engine_name)
+                    print(f"[STARTUP] ✓ Unloaded old plugin instance")
+            except Exception as e:
+                print(f"[STARTUP] Warning: Could not unload plugin: {e}")
+            
+            # Force reload the plugin module to get latest code
+            print(f"[STARTUP] Reloading {engine_name} plugin module...")
+            try:
+                import importlib
+                import sys
+                plugin_module_name = f"plugins.ocr.{engine_name}"
+                if plugin_module_name in sys.modules:
+                    print(f"[STARTUP] Removing cached module: {plugin_module_name}")
+                    del sys.modules[plugin_module_name]
+                    # Also remove __pycache__ reference
+                    if f"{plugin_module_name}.__init__" in sys.modules:
+                        del sys.modules[f"{plugin_module_name}.__init__"]
+                    print(f"[STARTUP] ✓ Cleared module cache")
+            except Exception as e:
+                print(f"[STARTUP] Warning: Could not clear module cache: {e}")
+            
+            # Load the new engine plugin
             print(f"[STARTUP] Loading {engine_name} plugin...")
             success = self.ocr_layer.plugin_manager.load_plugin(engine_name)
             
             if success:
+                # Set as default engine (this updates _current_engine)
+                print(f"[STARTUP] Setting {engine_name} as default engine...")
+                if not self.ocr_layer.set_default_engine(engine_name):
+                    print(f"[STARTUP] ⚠️ Warning: Failed to set {engine_name} as default")
+                
                 # Update config
                 if self.config_manager:
                     self.config_manager.set_setting('ocr.engine', engine_name)

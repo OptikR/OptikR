@@ -38,9 +38,15 @@ class OCREngine(Enum):
 class TranslationEngine(Enum):
     """Available translation engines."""
     MARIANMT = "marianmt"
+    MARIANMT_GPU = "marianmt_gpu"  # Plugin-based MarianMT (supports both GPU and CPU)
     DICTIONARY = "dictionary"
     GOOGLE_TRANSLATE = "google_translate"
+    GOOGLE_FREE = "google_free"
+    GOOGLE = "google"
+    LIBRETRANSLATE = "libretranslate"
+    DEEPL = "deepl"
     AZURE_TRANSLATOR = "azure_translator"
+    AZURE = "azure"
 
 
 class RenderMode(Enum):
