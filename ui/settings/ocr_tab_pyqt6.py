@@ -129,6 +129,14 @@ class OCRSettingsTab(TranslatableMixin, QWidget):
         if self.confidence_slider:
             state['confidence'] = self.confidence_slider.value()
         
+        # Preprocessing
+        if hasattr(self, 'preprocessing_enabled'):
+            state['preprocessing'] = self.preprocessing_enabled.isChecked()
+        
+        # Bubble detection
+        if hasattr(self, 'bubble_detection_enabled'):
+            state['bubble_detection'] = self.bubble_detection_enabled.isChecked()
+        
         # Languages (if applicable)
         if self.language_list:
             languages = []
@@ -525,6 +533,37 @@ class OCRSettingsTab(TranslatableMixin, QWidget):
         self.preprocessing_mode_intelligent.stateChanged.connect(self.on_change)
         layout.addWidget(self.preprocessing_mode_intelligent)
         
+        # Bubble Detection checkbox
+        self.bubble_detection_enabled = QCheckBox("🎯 Enable Bubble-Aware OCR (Manga)")
+        self.bubble_detection_enabled.setChecked(True)
+        self.bubble_detection_enabled.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        self.bubble_detection_enabled.stateChanged.connect(self.on_change)
+        layout.addWidget(self.bubble_detection_enabled)
+        
+        bubble_desc = QLabel(
+            "Intelligent speech bubble detection for manga:\n"
+            "1️⃣ Grid-based OCR for accurate text recognition\n"
+            "2️⃣ Detect speech bubbles in the image\n"
+            "3️⃣ Map recognized text to bubble positions\n"
+            "4️⃣ Overlays appear at correct bubble locations\n\n"
+            "✓ Accurate text recognition (grid OCR with context)\n"
+            "✓ Perfect overlay positioning (mapped to bubbles)\n"
+            "✗ Adds ~10-30ms per frame\n"
+            "💡 Best for: Manga, comics with speech bubbles"
+        )
+        bubble_desc.setWordWrap(True)
+        bubble_desc.setStyleSheet(
+            "color: #888; font-size: 8pt; margin-left: 25px; margin-bottom: 5px; "
+            "padding: 8px; background-color: #1e1e1e; border-radius: 3px;"
+        )
+        layout.addWidget(bubble_desc)
+        
+        # Bubble detection settings button
+        bubble_settings_btn = QPushButton("⚙️ Bubble Detection Settings")
+        bubble_settings_btn.setStyleSheet("margin-left: 25px; padding: 5px 10px;")
+        bubble_settings_btn.clicked.connect(self._show_bubble_settings)
+        layout.addWidget(bubble_settings_btn)
+        
         # Engine loading information
         loading_info_label = self._create_label("", bold=True)
         self.set_translatable_text(loading_info_label, "ocr_engine_loading_label")
@@ -548,6 +587,75 @@ class OCRSettingsTab(TranslatableMixin, QWidget):
         """Handle preprocessing checkbox state change."""
         enabled = state == 2  # Qt.CheckState.Checked
         self.preprocessing_mode_intelligent.setEnabled(enabled)
+    
+    def _show_bubble_settings(self):
+        """Show bubble detection settings dialog."""
+        from PyQt6.QtWidgets import QDialog, QFormLayout, QSpinBox, QDialogButtonBox
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Bubble Detection Settings")
+        dialog.setMinimumWidth(400)
+        
+        layout = QVBoxLayout(dialog)
+        form = QFormLayout()
+        
+        # Min bubble area
+        min_area = QSpinBox()
+        min_area.setRange(100, 10000)
+        min_area.setValue(self.config_manager.get_setting('ocr.min_bubble_area', 500))
+        min_area.setSuffix(" px²")
+        form.addRow("Minimum Bubble Size:", min_area)
+        
+        # Max bubble area
+        max_area = QSpinBox()
+        max_area.setRange(1000, 200000)
+        max_area.setValue(self.config_manager.get_setting('ocr.max_bubble_area', 50000))
+        max_area.setSuffix(" px²")
+        form.addRow("Maximum Bubble Size:", max_area)
+        
+        # Brightness threshold
+        brightness = QSpinBox()
+        brightness.setRange(50, 255)
+        brightness.setValue(self.config_manager.get_setting('ocr.brightness_threshold', 200))
+        brightness.setToolTip("Higher = only detect brighter bubbles (200 for white, 150 for gray)")
+        form.addRow("Brightness Threshold:", brightness)
+        
+        # Margin
+        margin = QSpinBox()
+        margin.setRange(0, 20)
+        margin.setValue(self.config_manager.get_setting('ocr.expand_bubble_margin', 5))
+        margin.setSuffix(" px")
+        margin.setToolTip("Margin around bubble edges")
+        form.addRow("Bubble Margin:", margin)
+        
+        layout.addLayout(form)
+        
+        # Add description
+        desc = QLabel(
+            "\n💡 Tips:\n"
+            "• Standard manga: Use defaults (200 brightness)\n"
+            "• Dark manga: Lower brightness (150)\n"
+            "• Dense text: Lower min size (300)\n"
+            "• Webtoons: Increase max size (100000)"
+        )
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color: #888; font-size: 8pt; padding: 10px; background-color: #1e1e1e; border-radius: 3px;")
+        layout.addWidget(desc)
+        
+        # Buttons
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            # Save settings
+            self.config_manager.set_setting('ocr.min_bubble_area', min_area.value())
+            self.config_manager.set_setting('ocr.max_bubble_area', max_area.value())
+            self.config_manager.set_setting('ocr.brightness_threshold', brightness.value())
+            self.config_manager.set_setting('ocr.expand_bubble_margin', margin.value())
+            self.config_manager.save_config()
+            self.on_change()
         self.on_change()
     
     def _create_test_section(self, parent_layout):
@@ -672,6 +780,10 @@ class OCRSettingsTab(TranslatableMixin, QWidget):
             self.preprocessing_mode_intelligent.setChecked(preprocessing_intelligent)
             self.preprocessing_mode_intelligent.setEnabled(preprocessing)
             
+            # Load bubble detection settings
+            bubble_detection = self.config_manager.get_setting('ocr.use_bubble_detection', True)
+            self.bubble_detection_enabled.setChecked(bubble_detection)
+            
             # Load languages
             languages = self.config_manager.get_setting('ocr.languages', [])
             if languages:
@@ -767,6 +879,7 @@ class OCRSettingsTab(TranslatableMixin, QWidget):
             self.config_manager.set_setting('ocr.confidence_threshold', self.confidence_slider.value() / 100.0)
             self.config_manager.set_setting('ocr.preprocessing_enabled', self.preprocessing_enabled.isChecked())
             self.config_manager.set_setting('ocr.preprocessing_intelligent', self.preprocessing_mode_intelligent.isChecked())
+            self.config_manager.set_setting('ocr.use_bubble_detection', self.bubble_detection_enabled.isChecked())
             
             # Save languages (extract just the codes from "Name (code)" format)
             languages = []

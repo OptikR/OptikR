@@ -42,11 +42,12 @@ class MultiRegionSelectorDialog(QDialog):
     # Signal emitted when configuration changes
     configurationChanged = pyqtSignal(object)  # MultiRegionConfig
     
-    def __init__(self, config: Optional[MultiRegionConfig] = None, parent=None, config_manager=None):
+    def __init__(self, config: Optional[MultiRegionConfig] = None, parent=None, config_manager=None, plugin_manager=None):
         super().__init__(parent)
         self.config = config or MultiRegionConfig()
         self.current_edit_region_id: Optional[str] = None
         self.config_manager = config_manager
+        self.plugin_manager = plugin_manager
         self.ocr_mappings = {}  # region_id -> ocr_engine
         
         self.setWindowTitle("Multi-Region Capture Configuration")
@@ -205,16 +206,16 @@ class MultiRegionSelectorDialog(QDialog):
     
     def _load_ocr_mappings(self):
         """Load OCR engine mappings from config."""
-        if self.config_manager:
-            self.ocr_mappings = self.config_manager.get_setting('plugins.ocr_per_region.region_ocr_mapping', {})
+        if self.plugin_manager:
+            self.ocr_mappings = self.plugin_manager.get_plugin_setting('ocr_per_region', 'region_ocr_mapping') or {}
             self.region_list.set_ocr_mappings(self.ocr_mappings)
             print(f"[MULTI_REGION] Loaded OCR mappings: {self.ocr_mappings}")
     
     def _save_ocr_mappings(self):
         """Save OCR engine mappings to config."""
-        if self.config_manager:
+        if self.plugin_manager:
             self.ocr_mappings = self.region_list.get_ocr_mappings()
-            self.config_manager.set_setting('plugins.ocr_per_region.region_ocr_mapping', self.ocr_mappings)
+            self.plugin_manager.set_plugin_setting('ocr_per_region', 'region_ocr_mapping', self.ocr_mappings)
             print(f"[MULTI_REGION] Saved OCR mappings: {self.ocr_mappings}")
     
     def _update_stats(self):

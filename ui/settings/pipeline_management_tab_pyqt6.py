@@ -1130,6 +1130,7 @@ class PipelineManagementTab(TranslatableMixin, QWidget):
         self.set_translatable_text(self.intelligent_validation_check, "pipeline_management_enable_text_validation_check")
         self.intelligent_validation_check.setChecked(True)
         self.intelligent_validation_check.setToolTip("Filter low-confidence and garbage text")
+        self.intelligent_validation_check.stateChanged.connect(self.settingChanged.emit)
         intelligent_layout.addRow("Text Validation:", self.intelligent_validation_check)
         
         # Min Confidence spinner
@@ -1138,6 +1139,7 @@ class PipelineManagementTab(TranslatableMixin, QWidget):
         self.intelligent_min_confidence_spin.setSingleStep(0.1)
         self.intelligent_min_confidence_spin.setValue(0.3)
         self.intelligent_min_confidence_spin.setToolTip("Higher values = stricter filtering (0.5+ recommended for noisy content)")
+        self.intelligent_min_confidence_spin.valueChanged.connect(self.settingChanged.emit)
         intelligent_layout.addRow("Min Confidence:", self.intelligent_min_confidence_spin)
         
         # Min Word Length spinner (NEW - filter out short garbage)
@@ -1146,6 +1148,7 @@ class PipelineManagementTab(TranslatableMixin, QWidget):
         self.intelligent_min_word_length_spin.setSingleStep(1)
         self.intelligent_min_word_length_spin.setValue(2)
         self.intelligent_min_word_length_spin.setToolTip("Reject text shorter than this (3-4 recommended to filter noise like '3 Z', 'Py')")
+        self.intelligent_min_word_length_spin.valueChanged.connect(self.settingChanged.emit)
         intelligent_layout.addRow("Min Word Length:", self.intelligent_min_word_length_spin)
         
         # Auto Learn checkbox
@@ -1153,6 +1156,7 @@ class PipelineManagementTab(TranslatableMixin, QWidget):
         self.set_translatable_text(self.intelligent_auto_learn_check, "pipeline_management_auto_learn_check")
         self.intelligent_auto_learn_check.setChecked(True)
         self.intelligent_auto_learn_check.setToolTip("Learn from corrections to improve accuracy over time")
+        self.intelligent_auto_learn_check.stateChanged.connect(self.settingChanged.emit)
         intelligent_layout.addRow("Auto Learn:", self.intelligent_auto_learn_check)
         
         correction_hint = QLabel("💡 Replaces old Text Validator plugin with enhanced OCR correction")
@@ -1179,18 +1183,21 @@ class PipelineManagementTab(TranslatableMixin, QWidget):
         self.set_translatable_text(self.spell_aggressive_check, "pipeline_management_aggressive_mode_check")
         self.spell_aggressive_check.setChecked(False)
         self.spell_aggressive_check.setToolTip("May over-correct but catches more errors")
+        self.spell_aggressive_check.stateChanged.connect(self.settingChanged.emit)
         spell_layout.addRow("", self.spell_aggressive_check)
         
         self.spell_fix_caps_check = QCheckBox()
         self.set_translatable_text(self.spell_fix_caps_check, "pipeline_management_fix_capitalization_check")
         self.spell_fix_caps_check.setChecked(True)
         self.spell_fix_caps_check.setToolTip("Fix random capitalization errors")
+        self.spell_fix_caps_check.stateChanged.connect(self.settingChanged.emit)
         spell_layout.addRow("", self.spell_fix_caps_check)
         
         self.spell_confidence_spin = CustomDoubleSpinBox()
         self.spell_confidence_spin.setRange(0.1, 1.0)
         self.spell_confidence_spin.setSingleStep(0.1)
         self.spell_confidence_spin.setValue(0.5)
+        self.spell_confidence_spin.valueChanged.connect(self.settingChanged.emit)
         spell_layout.addRow("Min Confidence:", self.spell_confidence_spin)
         
         layout.addWidget(spell_group)
