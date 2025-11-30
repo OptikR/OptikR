@@ -12,17 +12,17 @@
   "settings": {
     "horizontal_threshold": {
       "type": "int",
-      "default": 50,
+      "default": 15,
       "min": 5,
       "max": 200,
-      "description": "Maximum horizontal distance (pixels) to merge text blocks (50px good for manga speech bubbles)"
+      "description": "Maximum horizontal distance (pixels) to merge text blocks (15px strict for manga speech bubbles)"
     },
     "vertical_threshold": {
       "type": "int",
-      "default": 30,
+      "default": 20,
       "min": 3,
       "max": 100,
-      "description": "Maximum vertical distance (pixels) to merge text blocks (30px good for manga multi-line text)"
+      "description": "Maximum vertical distance (pixels) to merge text blocks (20px strict for manga multi-line text)"
     },
     "line_height_tolerance": {
       "type": "float",

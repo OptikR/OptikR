@@ -51,22 +51,15 @@ class OCRWorker(BaseWorker):
             
             self.log(f"Initializing PaddleOCR (lang={paddle_lang}, gpu={self.use_gpu})...")
             
-            # Initialize PaddleOCR
-            try:
-                # Try with show_log parameter (newer versions)
-                self.ocr = PaddleOCR(
-                    use_angle_cls=True,
-                    lang=paddle_lang,
-                    use_gpu=self.use_gpu,
-                    show_log=False
-                )
-            except TypeError:
-                # Fallback without show_log parameter (older versions)
-                self.ocr = PaddleOCR(
-                    use_angle_cls=True,
-                    lang=paddle_lang,
-                    use_gpu=self.use_gpu
-                )
+            # Initialize PaddleOCR with proper parameter handling
+            # PaddleOCR 2.8+ doesn't use use_gpu, it auto-detects based on paddlepaddle installation
+            init_params = {
+                'use_angle_cls': True,
+                'lang': paddle_lang
+            }
+            
+            # Try to initialize with minimal parameters (works with all versions)
+            self.ocr = PaddleOCR(**init_params)
             
             self.log("PaddleOCR initialized successfully")
             return True

@@ -38,7 +38,7 @@ except ImportError:
 
 
 class OCREngine(IOCREngine):
-    """Hybrid OCR engine combining EasyOCR and Tesseract."""
+    """Hybrid OCR engine: EasyOCR for positions + Manga OCR for text (manga optimized)."""
     
     def __init__(self, engine_name: str = "hybrid_ocr", engine_type=None):
         """Initialize Hybrid OCR engine."""
@@ -47,56 +47,39 @@ class OCREngine(IOCREngine):
         super().__init__(engine_name, engine_type)
         
         self.easyocr_reader = None
-        self.current_language = 'en'
-        self.strategy = 'best_confidence'
+        self.manga_ocr = None  # Lazy loaded
+        self.current_language = 'ja'  # Default to Japanese for manga
         self.confidence_threshold = 0.5
-        self.optimization_mode = 'balanced'
-        self.parallel_execution = True
-        self.smart_fallback = True
         self.cache_enabled = True
-        self.result_cache = {}  # Simple frame cache
         self.logger = logging.getLogger(__name__)
     
     def initialize(self, config: dict) -> bool:
-        """Initialize both OCR engines."""
+        """Initialize EasyOCR (Manga OCR loads lazily on first use)."""
         try:
             if not EASYOCR_AVAILABLE:
                 self.logger.error("EasyOCR not available")
                 self.status = OCREngineStatus.ERROR
                 return False
             
-            if not TESSERACT_AVAILABLE:
-                self.logger.error("Tesseract not available")
-                self.status = OCREngineStatus.ERROR
-                return False
-            
             self.status = OCREngineStatus.INITIALIZING
             
-            self.current_language = config.get('language', 'en')
+            self.current_language = config.get('language', 'ja')  # Default to Japanese for manga
             use_gpu = config.get('gpu', True)
-            self.strategy = config.get('strategy', 'best_confidence')
             self.confidence_threshold = config.get('confidence_threshold', 0.5)
-            self.optimization_mode = config.get('optimization_mode', 'balanced')
-            self.parallel_execution = config.get('parallel_execution', True)
-            self.smart_fallback = config.get('smart_fallback', True)
             self.cache_enabled = config.get('cache_enabled', True)
             
-            self.logger.info(f"Initializing Hybrid OCR (EasyOCR + Tesseract)")
+            self.logger.info(f"Initializing Hybrid OCR (EasyOCR + Manga OCR)")
             self.logger.info(f"  Language: {self.current_language}")
             self.logger.info(f"  GPU: {use_gpu}")
-            self.logger.info(f"  Strategy: {self.strategy}")
             
-            # Initialize EasyOCR
+            # Initialize EasyOCR at startup (fast, lightweight)
+            self.logger.info("  Loading EasyOCR...")
             self.easyocr_reader = easyocr.Reader([self.current_language], gpu=use_gpu)
             self.logger.info("  ✓ EasyOCR initialized")
             
-            # Test Tesseract
-            try:
-                pytesseract.get_tesseract_version()
-                self.logger.info("  ✓ Tesseract available")
-            except Exception as e:
-                self.logger.warning(f"  ⚠ Tesseract not found: {e}")
-                self.logger.warning("  Will use EasyOCR only")
+            # Manga OCR will load lazily on first use (saves startup time)
+            self.manga_ocr = None
+            self.logger.info("  ⏳ Manga OCR will load on first translation (lazy loading)")
             
             self.status = OCREngineStatus.READY
             self.logger.info("Hybrid OCR initialized successfully")
@@ -109,13 +92,14 @@ class OCREngine(IOCREngine):
 
     
     def extract_text(self, frame: Frame, options: OCRProcessingOptions) -> List[TextBlock]:
-        """Extract text using both engines and combine results (optimized)."""
+        """FIXED Hybrid: EasyOCR for POSITIONS + Manga OCR for TEXT (no grid!)."""
         if not self.is_ready():
             return []
         
         try:
             import numpy as np
-            import hashlib
+            from PIL import Image
+            import time
             
             # Get frame data
             if not isinstance(frame.data, np.ndarray):
@@ -123,82 +107,193 @@ class OCREngine(IOCREngine):
                 return []
             
             image_data = frame.data
+            h, w = image_data.shape[:2]
+            start_time = time.time()
             
-            # Check cache if enabled
-            if self.cache_enabled:
-                frame_hash = hashlib.md5(image_data.tobytes()).hexdigest()
-                if frame_hash in self.result_cache:
-                    self.logger.info("  ⚡ Cache hit - returning cached results")
-                    return self.result_cache[frame_hash]
+            # Load Manga OCR if not already loaded
+            if not hasattr(self, 'manga_ocr') or self.manga_ocr is None:
+                try:
+                    from manga_ocr import MangaOcr
+                    self.manga_ocr = MangaOcr()
+                    self.logger.info("[HYBRID FIXED] Manga OCR loaded")
+                except Exception as e:
+                    self.logger.error(f"[HYBRID FIXED] Failed to load Manga OCR: {e}")
+                    return []
             
-            # Optimization mode determines execution strategy
-            if self.optimization_mode == 'fast':
-                # Fast mode: Only run EasyOCR (best for manga)
-                self.logger.info("Running EasyOCR only (fast mode)...")
-                easyocr_results = self._run_easyocr(image_data)
-                combined_results = self._blocks_to_textblocks(easyocr_results)
-                
-            elif self.optimization_mode == 'balanced':
-                # Balanced: Smart fallback - only run Tesseract if needed
-                self.logger.info("Running EasyOCR...")
-                easyocr_results = self._run_easyocr(image_data)
-                self.logger.info(f"  EasyOCR found {len(easyocr_results)} blocks")
-                
-                if self.smart_fallback:
-                    # Check if EasyOCR results are good enough
-                    avg_confidence = sum(b['confidence'] for b in easyocr_results) / len(easyocr_results) if easyocr_results else 0
+            # STEP 1: EasyOCR detects actual text positions (CORRECT APPROACH!)
+            self.logger.info("[HYBRID FIXED] Step 1: EasyOCR detecting text positions...")
+            easyocr_positions = self._run_easyocr(image_data)
+            self.logger.info(f"[HYBRID FIXED] EasyOCR found {len(easyocr_positions)} text regions")
+            
+            if not easyocr_positions:
+                self.logger.warning("[HYBRID FIXED] No positions found by EasyOCR")
+                return []
+            
+            # STEP 2: Manga OCR reads text from each EasyOCR position
+            self.logger.info(f"[HYBRID FIXED] Step 2: Manga OCR reading text from {len(easyocr_positions)} regions...")
+            results = []
+            
+            for i, easy_block in enumerate(easyocr_positions, 1):
+                try:
+                    # Get region from EasyOCR position
+                    bbox = easy_block['bbox']
+                    x, y, bw, bh = bbox.x, bbox.y, bbox.width, bbox.height
                     
-                    # Get high confidence threshold from config
-                    high_conf_threshold = 0.75
-                    if hasattr(self, 'config_manager') and self.config_manager:
-                        high_conf_threshold = self.config_manager.get_setting('quality.high_confidence_threshold', 0.75)
+                    # Crop region
+                    region = image_data[y:y+bh, x:x+bw]
                     
-                    if avg_confidence >= high_conf_threshold:
-                        # High confidence - skip Tesseract
-                        self.logger.info(f"  ⚡ High confidence ({avg_confidence:.2f}) - skipping Tesseract")
-                        combined_results = self._blocks_to_textblocks(easyocr_results)
+                    # Convert to RGB for PIL
+                    if len(region.shape) == 3 and region.shape[2] == 3:
+                        region_rgb = region[:, :, ::-1]
+                        region_pil = Image.fromarray(region_rgb)
                     else:
-                        # Low confidence - run Tesseract too
-                        self.logger.info(f"  Low confidence ({avg_confidence:.2f}) - running Tesseract...")
-                        tesseract_results = self._run_tesseract(image_data)
-                        self.logger.info(f"  Tesseract found {len(tesseract_results)} blocks")
-                        combined_results = self._combine_results(easyocr_results, tesseract_results)
-                else:
-                    # Always run both in balanced mode
-                    if self.parallel_execution:
-                        easyocr_results, tesseract_results = self._run_parallel(image_data)
-                    else:
-                        tesseract_results = self._run_tesseract(image_data)
-                    combined_results = self._combine_results(easyocr_results, tesseract_results)
-                
-            else:  # accurate mode
-                # Accurate: Always run both engines
-                self.logger.info("Running both engines (accurate mode)...")
-                if self.parallel_execution:
-                    easyocr_results, tesseract_results = self._run_parallel(image_data)
-                else:
-                    easyocr_results = self._run_easyocr(image_data)
-                    tesseract_results = self._run_tesseract(image_data)
-                
-                self.logger.info(f"  EasyOCR: {len(easyocr_results)}, Tesseract: {len(tesseract_results)}")
-                combined_results = self._combine_results(easyocr_results, tesseract_results)
+                        region_pil = Image.fromarray(region)
+                    
+                    # Read text with Manga OCR
+                    text = self.manga_ocr(region_pil)
+                    
+                    if text and text.strip():
+                        # Use EasyOCR's position, MangaOCR's text
+                        results.append(TextBlock(
+                            text=text.strip(),
+                            position=bbox,  # ✓ CORRECT position from EasyOCR
+                            confidence=easy_block['confidence'],
+                            language='ja'
+                        ))
+                        
+                        if i <= 5:  # Log first 5
+                            self.logger.info(f"  Region {i}: '{text[:30]}...' at ({x},{y})")
+                    
+                except Exception as e:
+                    self.logger.warning(f"  Region {i} failed: {e}")
+                    continue
             
-            self.logger.info(f"  Final: {len(combined_results)} blocks")
-            
-            # Cache results
-            if self.cache_enabled:
-                self.result_cache[frame_hash] = combined_results
-                # Limit cache size
-                if len(self.result_cache) > 10:
-                    self.result_cache.pop(next(iter(self.result_cache)))
-            
-            return combined_results
+            elapsed = time.time() - start_time
+            self.logger.info(f"[HYBRID FIXED] ✓ {len(results)} text blocks in {elapsed:.2f}s")
+            self.logger.info(f"[HYBRID FIXED] Using EasyOCR positions + MangaOCR text")
+            self.logger.info(f"[HYBRID FIXED] Note: Use text_block_merger optimizer plugin to merge lines into bubbles")
+            return results
             
         except Exception as e:
             self.logger.error(f"Hybrid OCR failed: {e}")
             import traceback
             self.logger.error(traceback.format_exc())
             return []
+    
+    def _run_manga_ocr_grid(self, image: np.ndarray, width: int, height: int) -> List[TextBlock]:
+        """Run Manga OCR on 3x4 grid to get all text."""
+        from PIL import Image
+        
+        # Create 3x4 grid (12 cells) - manga reading order: right to left, top to bottom
+        cols = 3
+        rows = 4
+        cell_w = width // cols
+        cell_h = height // rows
+        
+        text_blocks = []
+        
+        self.logger.info(f"[MANGA GRID] Processing {cols}x{rows} grid (cell size: {cell_w}x{cell_h})")
+        
+        for row in range(rows):
+            for col in range(cols):
+                x = col * cell_w
+                y = row * cell_h
+                
+                # Crop grid cell
+                cell = image[y:y+cell_h, x:x+cell_w]
+                
+                # Convert to RGB for PIL
+                if len(cell.shape) == 3 and cell.shape[2] == 3:
+                    cell_rgb = cell[:, :, ::-1]
+                    cell_pil = Image.fromarray(cell_rgb)
+                else:
+                    cell_pil = Image.fromarray(cell)
+                
+                # Read text with Manga OCR
+                try:
+                    text = self.manga_ocr(cell_pil)
+                    
+                    # Log what we got (even if empty)
+                    if text and text.strip():
+                        self.logger.debug(f"[MANGA GRID] Cell ({row},{col}): '{text[:30]}...'")
+                        text_blocks.append(TextBlock(
+                            text=text.strip(),
+                            position=Rectangle(x=x, y=y, width=cell_w, height=cell_h),
+                            confidence=0.95,
+                            language='ja'
+                        ))
+                    else:
+                        self.logger.debug(f"[MANGA GRID] Cell ({row},{col}): empty")
+                        
+                except Exception as e:
+                    self.logger.warning(f"[MANGA GRID] Cell ({row},{col}) failed: {e}")
+        
+        self.logger.info(f"[MANGA GRID] Found {len(text_blocks)} non-empty cells out of {cols*rows}")
+        return text_blocks
+    
+    def _match_text_to_positions(self, manga_texts: List[TextBlock], easyocr_positions: List[Dict]) -> List[TextBlock]:
+        """Match Manga OCR text to EasyOCR positions by proximity."""
+        import numpy as np
+        
+        matched_results = []
+        used_positions = set()
+        
+        for manga_block in manga_texts:
+            # Find closest EasyOCR position
+            manga_center_x = manga_block.position.x + manga_block.position.width / 2
+            manga_center_y = manga_block.position.y + manga_block.position.height / 2
+            
+            best_match = None
+            best_distance = float('inf')
+            best_idx = -1
+            
+            for idx, easy_block in enumerate(easyocr_positions):
+                if idx in used_positions:
+                    continue
+                
+                easy_bbox = easy_block['bbox']
+                easy_center_x = easy_bbox.x + easy_bbox.width / 2
+                easy_center_y = easy_bbox.y + easy_bbox.height / 2
+                
+                # Calculate distance
+                distance = np.sqrt((manga_center_x - easy_center_x)**2 + (manga_center_y - easy_center_y)**2)
+                
+                if distance < best_distance:
+                    best_distance = distance
+                    best_match = easy_block
+                    best_idx = idx
+            
+            if best_match:
+                # Use Manga OCR text + EasyOCR position
+                matched_results.append(TextBlock(
+                    text=manga_block.text,
+                    position=best_match['bbox'],
+                    confidence=best_match['confidence'],
+                    language='ja'
+                ))
+                used_positions.add(best_idx)
+            else:
+                # No match found, use original grid position
+                matched_results.append(manga_block)
+        
+        return matched_results
+    
+    def _run_manga_ocr_full(self, image: np.ndarray) -> str:
+        """Run Manga OCR on full image."""
+        try:
+            from PIL import Image
+            
+            # Convert to RGB for PIL
+            if len(image.shape) == 3 and image.shape[2] == 3:
+                image_rgb = image[:, :, ::-1]
+                pil_image = Image.fromarray(image_rgb)
+            else:
+                pil_image = Image.fromarray(image)
+            
+            return self.manga_ocr(pil_image)
+        except Exception as e:
+            self.logger.error(f"Manga OCR full page failed: {e}")
+            return ""
     
     def _run_parallel(self, image: np.ndarray) -> tuple:
         """Run both engines in parallel using threads."""
@@ -241,10 +336,21 @@ class OCREngine(IOCREngine):
     def _run_easyocr(self, image: np.ndarray) -> List[Dict[str, Any]]:
         """Run EasyOCR and return results."""
         try:
-            results = self.easyocr_reader.readtext(image, paragraph=True)
+            # Use paragraph=False for more reliable bounding boxes
+            results = self.easyocr_reader.readtext(image, paragraph=False)
             
             blocks = []
-            for bbox, text, confidence in results:
+            for result in results:
+                # Handle different result formats
+                if len(result) == 3:
+                    bbox, text, confidence = result
+                elif len(result) == 2:
+                    bbox, text = result
+                    confidence = 0.9  # Default confidence
+                else:
+                    self.logger.warning(f"Unexpected EasyOCR result format: {len(result)} values")
+                    continue
+                
                 # Convert bbox to Rectangle
                 x_coords = [point[0] for point in bbox]
                 y_coords = [point[1] for point in bbox]
@@ -264,6 +370,8 @@ class OCREngine(IOCREngine):
             
         except Exception as e:
             self.logger.error(f"EasyOCR failed: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             return []
     
     def _run_tesseract(self, image: np.ndarray) -> List[Dict[str, Any]]:
@@ -537,5 +645,7 @@ class OCREngine(IOCREngine):
     def cleanup(self) -> None:
         """Clean up resources."""
         self.easyocr_reader = None
+        if hasattr(self, 'manga_ocr'):
+            self.manga_ocr = None
         self.status = OCREngineStatus.UNINITIALIZED
         self.logger.info("Hybrid OCR engine cleaned up")

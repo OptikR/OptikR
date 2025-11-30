@@ -40,8 +40,12 @@ class IntelligentTextProcessorOptimizer:
         self.enable_corrections = config.get('enable_corrections', True)
         self.enable_context = config.get('enable_context', True)
         self.enable_validation = config.get('enable_validation', True)
-        self.min_confidence = config.get('min_confidence', 0.3)
+        self.min_confidence = config.get('min_confidence', 0.2)
+        self.min_word_length = config.get('min_word_length', 1)  # Default to 1 for CJK support
         self.auto_learn = config.get('auto_learn', True)
+        
+        # Store in config dict for later access
+        self.config['min_word_length'] = self.min_word_length
         
         # Create processor (dict_engine will be set later)
         self.processor = IntelligentTextProcessor(
@@ -61,6 +65,7 @@ class IntelligentTextProcessorOptimizer:
         print(f"  Context: {'enabled' if self.enable_context else 'disabled'}")
         print(f"  Validation: {'enabled' if self.enable_validation else 'disabled'}")
         print(f"  Min confidence: {self.min_confidence}")
+        print(f"  Min word length: {self.min_word_length}")
     
     def set_dict_engine(self, dict_engine):
         """Set smart dictionary engine reference."""
@@ -73,6 +78,7 @@ class IntelligentTextProcessorOptimizer:
             self.min_confidence = config['min_confidence']
             self.config['min_confidence'] = config['min_confidence']
         if 'min_word_length' in config:
+            self.min_word_length = config['min_word_length']
             self.config['min_word_length'] = config['min_word_length']
         if 'enable_corrections' in config:
             self.enable_corrections = config['enable_corrections']
@@ -83,7 +89,7 @@ class IntelligentTextProcessorOptimizer:
         if 'enable_validation' in config:
             self.enable_validation = config['enable_validation']
         
-        print(f"[INTELLIGENT_PROCESSOR] Configuration updated: min_conf={self.min_confidence}, min_word_len={self.config.get('min_word_length', 2)}")
+        print(f"[INTELLIGENT_PROCESSOR] Configuration updated: min_conf={self.min_confidence}, min_word_len={self.min_word_length}")
     
     def process(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -125,8 +131,12 @@ class IntelligentTextProcessorOptimizer:
                 min_word_length = self.config.get('min_word_length', 2)
                 text_length = len(proc.corrected.strip())
                 
-                # Allow single-letter words if they're valid English words (I, A)
-                is_valid_single_letter = text_length == 1 and proc.corrected.strip().upper() in ['I', 'A']
+                # Check if text contains CJK characters (Japanese, Chinese, Korean)
+                import re
+                has_cjk = bool(re.search(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]', proc.corrected))
+                
+                # Allow single-letter words if they're valid English words (I, A) OR if they're CJK characters
+                is_valid_single_letter = text_length == 1 and (proc.corrected.strip().upper() in ['I', 'A'] or has_cjk)
                 
                 # If corrections were applied, be more lenient with confidence threshold AND validation
                 min_conf_threshold = self.min_confidence

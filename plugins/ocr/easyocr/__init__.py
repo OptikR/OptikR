@@ -53,10 +53,38 @@ class OCREngine(IOCREngine):
             self.current_language = config.get('language', 'en')
             use_gpu = config.get('gpu', True)
             
-            self.logger.info(f"Initializing EasyOCR (language={self.current_language}, gpu={use_gpu})")
+            # Get all languages from config (for multi-language support)
+            languages = config.get('languages', [self.current_language])
+            if isinstance(languages, str):
+                languages = [languages]
             
-            # Initialize EasyOCR reader
-            self.reader = easyocr.Reader([self.current_language], gpu=use_gpu)
+            # Map language codes to EasyOCR format
+            lang_mapping = {
+                'zh-CN': 'zh_sim',  # Simplified Chinese
+                'zh-TW': 'zh_tra',  # Traditional Chinese
+                'zh': 'zh_sim'      # Default Chinese to simplified
+            }
+            languages = [lang_mapping.get(lang, lang) for lang in languages]
+            
+            # For Japanese, always include English too (manga often has mixed text)
+            if 'ja' in languages and 'en' not in languages:
+                languages.append('en')
+            
+            # Remove duplicates
+            languages = list(dict.fromkeys(languages))
+            
+            # EasyOCR restriction: Japanese only works with English
+            if 'ja' in languages:
+                languages = ['ja', 'en']
+                self.logger.info("Japanese detected - limiting to ja+en (EasyOCR requirement)")
+            else:
+                # Limit to 3 languages for performance
+                languages = languages[:3]
+            
+            self.logger.info(f"Initializing EasyOCR (languages={languages}, gpu={use_gpu})")
+            
+            # Initialize EasyOCR reader with all languages
+            self.reader = easyocr.Reader(languages, gpu=use_gpu)
             
             self.status = OCREngineStatus.READY
             self.logger.info("EasyOCR initialized successfully")

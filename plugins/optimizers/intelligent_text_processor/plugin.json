@@ -13,7 +13,8 @@
     "enable_corrections": true,
     "enable_context": true,
     "enable_validation": true,
-    "min_confidence": 0.3,
+    "min_confidence": 0.2,
+    "min_word_length": 1,
     "auto_learn": true
   },
   "dependencies": []

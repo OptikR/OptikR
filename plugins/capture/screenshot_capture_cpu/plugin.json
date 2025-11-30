@@ -25,10 +25,7 @@
     }
   },
   "dependencies": [
-    "numpy",
-    "pywin32 (optional - for Win32 GDI)",
-    "mss (optional - for MSS)",
-    "pillow (optional - for PIL)"
+    "numpy"
   ],
   "performance": {
     "fps": "~85 FPS (11-12ms per frame)",

@@ -68,22 +68,15 @@ class OCREngine(IOCREngine):
             
             self.logger.info(f"Initializing PaddleOCR (lang={paddle_lang}, gpu={use_gpu})")
             
-            # Initialize PaddleOCR
-            try:
-                # Try with show_log parameter (newer versions)
-                self.engine = PaddleOCR(
-                    use_angle_cls=True,
-                    lang=paddle_lang,
-                    use_gpu=use_gpu,
-                    show_log=False
-                )
-            except TypeError:
-                # Fallback without show_log parameter (older versions)
-                self.engine = PaddleOCR(
-                    use_angle_cls=True,
-                    lang=paddle_lang,
-                    use_gpu=use_gpu
-                )
+            # Initialize PaddleOCR with proper parameter handling
+            # PaddleOCR 2.8+ doesn't use use_gpu, it auto-detects based on paddlepaddle installation
+            init_params = {
+                'use_angle_cls': True,
+                'lang': paddle_lang
+            }
+            
+            # Try to initialize with minimal parameters (works with all versions)
+            self.engine = PaddleOCR(**init_params)
             
             self.status = OCREngineStatus.READY
             self.logger.info("PaddleOCR initialized successfully")
@@ -112,35 +105,73 @@ class OCREngine(IOCREngine):
                 self.logger.error("Frame data is not a numpy array")
                 return []
             
-            # Perform OCR
-            results = self.engine.ocr(image, cls=True)
+            # Perform OCR (PaddleOCR 3.x doesn't use cls parameter)
+            results = self.engine.ocr(image)
             
             # Parse results into TextBlock objects
             text_blocks = []
             
-            if results and results[0]:
-                for line in results[0]:
-                    # Each line: [bbox_points, (text, confidence)]
-                    bbox_points, (text, confidence) = line
+            # PaddleOCR 3.x returns different format
+            # Results is a list of results (one per image)
+            if results:
+                for result in results:
+                    if not result:
+                        continue
                     
-                    # Convert bbox points to Rectangle
-                    xs = [p[0] for p in bbox_points]
-                    ys = [p[1] for p in bbox_points]
-                    
-                    x = int(min(xs))
-                    y = int(min(ys))
-                    w = int(max(xs) - x)
-                    h = int(max(ys) - y)
-                    
-                    # Create TextBlock
-                    position = Rectangle(x=x, y=y, width=w, height=h)
-                    text_block = TextBlock(
-                        text=text,
-                        position=position,
-                        confidence=float(confidence),
-                        language=self.current_language
-                    )
-                    text_blocks.append(text_block)
+                    # Each result has 'dt_polys' (bounding boxes) and 'rec_text' (recognized text) and 'rec_score' (confidence)
+                    if isinstance(result, dict):
+                        # New format (dict with keys)
+                        dt_polys = result.get('dt_polys', [])
+                        rec_texts = result.get('rec_text', [])
+                        rec_scores = result.get('rec_score', [])
+                        
+                        for bbox_points, text, confidence in zip(dt_polys, rec_texts, rec_scores):
+                            # Convert bbox points to Rectangle
+                            xs = [p[0] for p in bbox_points]
+                            ys = [p[1] for p in bbox_points]
+                            
+                            x = int(min(xs))
+                            y = int(min(ys))
+                            w = int(max(xs) - x)
+                            h = int(max(ys) - y)
+                            
+                            # Create TextBlock
+                            position = Rectangle(x=x, y=y, width=w, height=h)
+                            text_block = TextBlock(
+                                text=text,
+                                position=position,
+                                confidence=float(confidence),
+                                language=self.current_language
+                            )
+                            text_blocks.append(text_block)
+                    elif isinstance(result, (list, tuple)):
+                        # Old format (list of [bbox, (text, confidence)])
+                        for line in result:
+                            if len(line) == 2:
+                                bbox_points, text_info = line
+                                if isinstance(text_info, (list, tuple)) and len(text_info) == 2:
+                                    text, confidence = text_info
+                                else:
+                                    continue
+                                
+                                # Convert bbox points to Rectangle
+                                xs = [p[0] for p in bbox_points]
+                                ys = [p[1] for p in bbox_points]
+                                
+                                x = int(min(xs))
+                                y = int(min(ys))
+                                w = int(max(xs) - x)
+                                h = int(max(ys) - y)
+                                
+                                # Create TextBlock
+                                position = Rectangle(x=x, y=y, width=w, height=h)
+                                text_block = TextBlock(
+                                    text=text,
+                                    position=position,
+                                    confidence=float(confidence),
+                                    language=self.current_language
+                                )
+                                text_blocks.append(text_block)
             
             self.logger.info(f"PaddleOCR extracted {len(text_blocks)} text blocks")
             return text_blocks
