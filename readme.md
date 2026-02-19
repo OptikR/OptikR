@@ -16,12 +16,6 @@ Version 0.1 | Proof of Concept
 
 This is a **proof of concept** and a **one-person community project** 
 
-**The Journey:**
-- 📋 Week 1: Planning & Design (pipeline architecture, plugin system, UI mockups)
-- 🔧 Week 2: Core Implementation (OCR, translation, overlay system)
-- 🔌 Week 3: Plugin System & Optimization (50+ plugins, performance tuning)
-- 🐛 Week 4: Testing, Debugging & Documentation (46 fixes, complete docs)
-
 **Built by someone with minimal coding experience** - I can understand code but can't write it from scratch. This project proves that with the right tools, determination, and community support, anyone can create something meaningful.
 
 **Why I Built This:**
@@ -1149,6 +1143,7 @@ See LICENSE file for details.
 *Translate anything, anywhere, anytime.*
 
 </div>
+
 
 
 
