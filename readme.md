@@ -14,7 +14,7 @@ Version 0.1 | Proof of Concept
 
 ## 💭 Project Motivation
 
-This is a **proof of concept** and a **one-person community project** built in just **4 weeks** - from initial planning to working application.
+This is a **proof of concept** and a **one-person community project** 
 
 **The Journey:**
 - 📋 Week 1: Planning & Design (pipeline architecture, plugin system, UI mockups)
@@ -1149,6 +1149,7 @@ See LICENSE file for details.
 *Translate anything, anywhere, anytime.*
 
 </div>
+
 
 
 
