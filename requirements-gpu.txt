@@ -1,0 +1,15 @@
+# OptikR Requirements - GPU Version
+# Install standalone: pip install -r requirements-gpu.txt
+# Or with core deps: pip install -r requirements.txt && pip install -r requirements-gpu.txt
+# Requires: NVIDIA GPU with CUDA 12.4 or compatible
+# Python 3.10+ compatible
+
+# ============================================================================
+# PyTorch with CUDA support
+# ============================================================================
+# Using --extra-index-url so PyPI remains available for other packages
+# This allows standalone installation without breaking non-PyTorch deps
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0

@@ -1,0 +1,65 @@
+{
+  "schema_version": "2.0",
+  "meta": {
+    "name": "Sample - Manga",
+    "version": "1.0",
+    "category": "Media",
+    "description": "Example manga context profile. Edit or replace with your own.",
+    "source_language": "ja",
+    "target_language": "en"
+  },
+  "global": {
+    "locked_terms": [
+      {
+        "source": "ナルト",
+        "target": "Naruto",
+        "type": "character",
+        "case_sensitive": true,
+        "priority": 100,
+        "notes": "Main protagonist - keep original name"
+      },
+      {
+        "source": "木ノ葉",
+        "target": "Konoha",
+        "type": "location",
+        "case_sensitive": true,
+        "priority": 90,
+        "notes": "Hidden Leaf Village"
+      },
+      {
+        "source": "暁",
+        "target": "Akatsuki",
+        "type": "organization",
+        "case_sensitive": true,
+        "priority": 90,
+        "notes": ""
+      }
+    ],
+    "translation_memory": [
+      {
+        "source": "火影",
+        "target": "Hokage",
+        "priority": 80,
+        "notes": "Title - Shadow of Fire"
+      }
+    ],
+    "regex_rules": [
+      {
+        "pattern": "「(.*?)」",
+        "action": "preserve",
+        "replacement": "",
+        "stage": "pre",
+        "enabled": true,
+        "description": "Preserve text inside Japanese quotation brackets"
+      }
+    ],
+    "formatting_rules": {
+      "preserve_honorifics": true,
+      "attack_uppercase": true,
+      "translate_sound_effects": false,
+      "preserve_brackets": true,
+      "language_style": "casual"
+    }
+  },
+  "stages": {}
+}
