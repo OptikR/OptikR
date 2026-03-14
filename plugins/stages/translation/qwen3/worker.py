@@ -54,10 +54,26 @@ def _lang_name(code: str) -> str:
 
 
 _DEFAULT_PROMPT_TEMPLATE = (
-    "You are a translation engine. Translate the user text from "
-    "{source_lang} to {target_lang}. Only return the translated text, with "
-    "no explanations or additional formatting."
+    "You are a deterministic machine translation engine.\n"
+    "Translate the provided SOURCE_TEXT into {target_lang}.\n"
+    "Rules:\n"
+    "1) Return ONLY the translation in {target_lang}.\n"
+    "2) Do NOT explain, summarize, answer, or add notes.\n"
+    "3) Preserve names, numbers, punctuation, and line breaks where possible.\n"
+    "4) If text is already in {target_lang}, return it unchanged."
 )
+
+
+def _is_valid_prompt_template(template: str) -> bool:
+    """Accept only templates that can be formatted with language placeholders."""
+    if not template or not template.strip():
+        return False
+    if "{target_lang}" not in template:
+        return False
+    # Keep backward compatibility with existing templates that still use source_lang.
+    if "{source_lang}" in template:
+        return True
+    return True
 
 
 class TranslationEngine(AbstractTranslationEngine):
@@ -75,6 +91,22 @@ class TranslationEngine(AbstractTranslationEngine):
         self._using_shared_model = False
         self._prompt_template: str = _DEFAULT_PROMPT_TEMPLATE
 
+    @staticmethod
+    def _contains_cjk(text: str) -> bool:
+        return bool(re.search(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]", text))
+
+    @staticmethod
+    def _contains_hangul(text: str) -> bool:
+        return bool(re.search(r"[\uac00-\ud7af]", text))
+
+    def _looks_wrong_for_target(self, translated: str, tgt_lang: str) -> bool:
+        if not translated or not translated.strip():
+            return True
+        latin_targets = {"en", "de", "fr", "es", "it", "pt", "nl", "pl", "tr"}
+        if tgt_lang in latin_targets:
+            return self._contains_cjk(translated) or self._contains_hangul(translated)
+        return False
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
@@ -91,8 +123,13 @@ class TranslationEngine(AbstractTranslationEngine):
             use_gpu = config.get("gpu", True) or config.get("use_gpu", True)
 
             prompt_tpl = str(config.get("prompt_template", "") or "").strip()
-            if prompt_tpl:
+            if _is_valid_prompt_template(prompt_tpl):
                 self._prompt_template = prompt_tpl
+            elif prompt_tpl:
+                self._logger.warning(
+                    "Ignoring invalid Qwen3 prompt template from config; "
+                    "falling back to built-in default"
+                )
 
             self._device = (
                 torch.device("cuda")
@@ -220,6 +257,7 @@ class TranslationEngine(AbstractTranslationEngine):
         src_lang: str,
         tgt_lang: str,
         options: TranslationOptions | None = None,
+        strict_mode: bool = False,
     ) -> list[dict[str, str]]:
         """Build chat-style messages for translation."""
         src_name = _lang_name(src_lang)
@@ -238,9 +276,21 @@ class TranslationEngine(AbstractTranslationEngine):
             system_content = (
                 f"Context: {options.context.strip()}\n\n{system_content}"
             )
+        if strict_mode:
+            system_content = (
+                f"{system_content}\n\n"
+                f"STRICT OUTPUT REQUIREMENT: Respond in {tgt_name} only. "
+                "No source language text, no explanations."
+            )
+        user_content = (
+            f"TARGET_LANGUAGE: {tgt_name}\n"
+            "SOURCE_TEXT_START\n"
+            f"{text}\n"
+            "SOURCE_TEXT_END"
+        )
         return [
             {"role": "system", "content": system_content},
-            {"role": "user", "content": text},
+            {"role": "user", "content": user_content},
         ]
 
     # ------------------------------------------------------------------
@@ -273,50 +323,58 @@ class TranslationEngine(AbstractTranslationEngine):
 
         start = time.time()
         try:
-            messages = self._build_messages(text, src_lang, tgt_lang, options)
-            prompt = self.tokenizer.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True,
-                enable_thinking=False,
-            )
-            inputs = self.tokenizer(
-                prompt, return_tensors="pt", truncation=True,
-                max_length=self._max_length,
-            ).to(self._device)
-
-            input_len = inputs["input_ids"].shape[1]
-
-            # Token IDs for <think> / </think> in Qwen3
-            _THINK_START = 151667
-            _THINK_END = 151668
-
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    **inputs,
-                    max_new_tokens=min(self._max_length, 64),
-                    do_sample=False,
-                    repetition_penalty=1.1,
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    suppress_tokens=[_THINK_START],
+            translated = ""
+            # Allow one strict retry if first pass ignores target language.
+            for strict_mode in (False, True):
+                messages = self._build_messages(
+                    text, src_lang, tgt_lang, options, strict_mode=strict_mode
                 )
+                prompt = self.tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True,
+                    enable_thinking=False,
+                )
+                inputs = self.tokenizer(
+                    prompt, return_tensors="pt", truncation=True,
+                    max_length=self._max_length,
+                ).to(self._device)
 
-            output_ids = outputs[0][input_len:].tolist()
+                input_len = inputs["input_ids"].shape[1]
 
-            # If </think> is present despite suppression, skip past it
-            try:
-                think_end = len(output_ids) - output_ids[::-1].index(_THINK_END)
-                output_ids = output_ids[think_end:]
-            except ValueError:
-                pass
+                # Token IDs for <think> / </think> in Qwen3
+                _THINK_START = 151667
+                _THINK_END = 151668
 
-            translated = self.tokenizer.decode(
-                output_ids, skip_special_tokens=True,
-            ).strip()
+                with torch.no_grad():
+                    outputs = self.model.generate(
+                        **inputs,
+                        max_new_tokens=min(self._max_length, 64),
+                        do_sample=False,
+                        repetition_penalty=1.1,
+                        pad_token_id=self.tokenizer.eos_token_id,
+                        suppress_tokens=[_THINK_START],
+                    )
 
-            # Final safety net: aggressively strip any thinking content
-            if "<think>" in translated:
-                parts = translated.split("</think>")
-                translated = parts[-1] if len(parts) > 1 else ""
-                translated = re.sub(r"</?think>", "", translated).strip()
+                output_ids = outputs[0][input_len:].tolist()
+
+                # If </think> is present despite suppression, skip past it
+                try:
+                    think_end = len(output_ids) - output_ids[::-1].index(_THINK_END)
+                    output_ids = output_ids[think_end:]
+                except ValueError:
+                    pass
+
+                translated = self.tokenizer.decode(
+                    output_ids, skip_special_tokens=True,
+                ).strip()
+
+                # Final safety net: aggressively strip any thinking content
+                if "<think>" in translated:
+                    parts = translated.split("</think>")
+                    translated = parts[-1] if len(parts) > 1 else ""
+                    translated = re.sub(r"</?think>", "", translated).strip()
+
+                if not self._looks_wrong_for_target(translated, tgt_lang):
+                    break
 
             elapsed = (time.time() - start) * 1000
             return TranslationResult(
