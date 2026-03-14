@@ -27,15 +27,21 @@ _LEGACY_QWEN_PROMPT = (
 )
 
 _NEW_QWEN_PROMPT = (
-    "You are a translation engine. Translate the user text from "
-    "{source_lang} to {target_lang}. Only return the translated text, "
-    "with no explanations or additional formatting."
+    "You are a deterministic machine translation engine.\n"
+    "Translate the provided SOURCE_TEXT into {target_lang}.\n"
+    "Rules:\n"
+    "1) Return ONLY the translation in {target_lang}.\n"
+    "2) Do NOT explain, summarize, answer, or add notes.\n"
+    "3) Preserve names, numbers, punctuation, and line breaks where possible.\n"
+    "4) If text is already in {target_lang}, return it unchanged."
 )
 
 
 def _migrate_qwen_prompt(tpl: str) -> str:
     """Replace legacy (bbox/JSON) prompt with text-only prompt for text-mode pipeline."""
     if not tpl or not tpl.strip():
+        return _NEW_QWEN_PROMPT
+    if tpl.strip() == tr("translation_qwen_prompt_engine_hint"):
         return _NEW_QWEN_PROMPT
     if tpl.strip() == _LEGACY_QWEN_PROMPT:
         return _NEW_QWEN_PROMPT
@@ -448,10 +454,16 @@ class TranslationSettingsTab(TranslatableMixin, QWidget):
                     'translation.context', self.context_edit.text().strip()
                 )
             if self.qwen_prompt_preview is not None:
-                self.config_manager.set_setting(
-                    "translation.qwen_prompt_template",
-                    self.qwen_prompt_preview.toPlainText().strip(),
-                )
+                # Only persist a real Qwen template when Qwen3 is selected.
+                # Prevent saving the read-only hint text as engine prompt.
+                selected_engine = self.engine_section.get_selected_engine()
+                if selected_engine == "qwen3":
+                    qwen_tpl = self.qwen_prompt_preview.toPlainText().strip()
+                    qwen_tpl = _migrate_qwen_prompt(qwen_tpl)
+                    self.config_manager.set_setting(
+                        "translation.qwen_prompt_template",
+                        qwen_tpl,
+                    )
             new_qwen_tpl = ""
             if self.qwen_prompt_preview is not None:
                 new_qwen_tpl = self.qwen_prompt_preview.toPlainText().strip()
