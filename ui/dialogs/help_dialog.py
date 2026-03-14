@@ -351,6 +351,9 @@ class HelpDialog(QDialog):
         <h3>Credits</h3>
         <p>Built with open-source technologies and community contributions.</p>
 
+        <h3>Contact</h3>
+        <p>optikr@outlook.de</p>
+
         <h3>Special Thanks</h3>
         <p>Tony without you this wouldnt be possible!</p>
         <p>Deniz Uluer Thank you for listining to my rubmbles while Testing and Debbuging</p>
