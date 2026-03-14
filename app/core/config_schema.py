@@ -784,7 +784,7 @@ class ConfigSchema:
         self.add_option(ConfigOption(
             name='translation.qwen_prompt_template',
             type=str,
-            default='You are a translation engine. Translate the user text from {source_lang} to {target_lang}. Only return the translated text, with no explanations or additional formatting.',
+            default='You are a deterministic machine translation engine.\nTranslate the provided SOURCE_TEXT into {target_lang}.\nRules:\n1) Return ONLY the translation in {target_lang}.\n2) Do NOT explain, summarize, answer, or add notes.\n3) Preserve names, numbers, punctuation, and line breaks where possible.\n4) If text is already in {target_lang}, return it unchanged.',
             description='Prompt template for the Qwen3 text translation engine. Use {source_lang} and {target_lang} placeholders.'
         ))
         
