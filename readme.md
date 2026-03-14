@@ -86,14 +86,6 @@ OptikR provides a powerful real-time screen translation and OCR system. Whether 
 
 ---
 
-## Screenshots
-
-### Main Interface
-
-
-
----
-
 ## Quick Start
 
 ### Prerequisites
