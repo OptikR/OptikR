@@ -209,6 +209,19 @@ class OCRStage:
         self._prev_results: list[Any] | None = None
         self._prev_roi_fingerprint: int = 0
 
+        self._ocr_options = self._build_ocr_options()
+
+    def _build_ocr_options(self) -> Any:
+        """Build ``OCRProcessingOptions`` with the stage's language and threshold."""
+        try:
+            from app.ocr.ocr_engine_interface import OCRProcessingOptions
+            return OCRProcessingOptions(
+                language=self._source_lang or "en",
+                confidence_threshold=self._confidence_threshold,
+            )
+        except Exception:
+            return None
+
     def reset(self) -> None:
         """Clear the frame-stability cache so the next frame is OCR'd fresh."""
         self._prev_thumb = None
@@ -555,7 +568,7 @@ class OCRStage:
                         timestamp=frame.timestamp,
                         source_region=frame.source_region,
                     )
-                    blocks = self._ocr_layer.extract_text(sub_frame)
+                    blocks = self._ocr_layer.extract_text(sub_frame, options=self._ocr_options)
                     for blk in blocks:
                         pos = getattr(blk, "position", None)
                         if pos is not None:
@@ -567,9 +580,9 @@ class OCRStage:
                     "[OCRStage] per-region OCR: %d regions -> %d blocks",
                     len(roi_regions), len(all_blocks),
                 )
-                text_blocks = all_blocks if all_blocks else self._ocr_layer.extract_text(frame)
+                text_blocks = all_blocks if all_blocks else self._ocr_layer.extract_text(frame, options=self._ocr_options)
             else:
-                text_blocks = self._ocr_layer.extract_text(frame)
+                text_blocks = self._ocr_layer.extract_text(frame, options=self._ocr_options)
 
             # Centre-correct any full-frame bboxes from the fallback path
             if not roi_regions and not engine_has_detection:

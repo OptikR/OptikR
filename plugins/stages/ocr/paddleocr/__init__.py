@@ -80,6 +80,7 @@ class OCREngine(IOCREngine):
             if self.engine is None and last_error is not None:
                 raise last_error
             
+            self.capabilities.has_text_detection = True
             self.status = OCREngineStatus.READY
             self.logger.info("PaddleOCR initialized successfully")
             return True

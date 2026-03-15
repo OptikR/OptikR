@@ -57,6 +57,7 @@ class OCREngine(IOCREngine):
             # Initialize EasyOCR reader
             self.reader = easyocr.Reader([self.current_language], gpu=use_gpu)
             
+            self.capabilities.has_text_detection = True
             self.status = OCREngineStatus.READY
             self.logger.info("EasyOCR initialized successfully")
             return True

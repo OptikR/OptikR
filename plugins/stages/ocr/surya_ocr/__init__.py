@@ -62,6 +62,7 @@ class OCREngine(IOCREngine):
             self.recognition_predictor = RecognitionPredictor(foundation)
             self.detection_predictor = DetectionPredictor()
 
+            self.capabilities.has_text_detection = True
             self.status = OCREngineStatus.READY
             self.logger.info("Surya OCR initialized successfully")
             return True
