@@ -609,11 +609,11 @@ class CaptureSettingsTab(TranslatableMixin, QWidget):
         
         layout.addLayout(sub_options_layout)
         
-        # Overlay visible in screenshots
+        # Overlay visible in screenshots (legacy — now handled by F9 hotkey)
         self.overlay_screenshot_check = QCheckBox()
         self.set_translatable_text(self.overlay_screenshot_check, "overlay_visible_screenshots_label")
         self.overlay_screenshot_check.setChecked(False)
-        self.overlay_screenshot_check.stateChanged.connect(self.on_change)
+        self.overlay_screenshot_check.setEnabled(False)
         layout.addWidget(self.overlay_screenshot_check)
         
         overlay_screenshot_desc = QLabel()

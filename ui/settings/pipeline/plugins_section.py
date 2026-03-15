@@ -179,7 +179,8 @@ class PluginsByStageSection(TranslatableMixin, QWidget):
         skip_layout.addRow("", self._create_pipeline_badge(audio_compatible=False))
 
         self.skip_threshold_spin = CustomDoubleSpinBox()
-        self.skip_threshold_spin.setRange(0.8, 0.99)
+        self.skip_threshold_spin.setDecimals(2)
+        self.skip_threshold_spin.setRange(0.80, 0.99)
         self.skip_threshold_spin.setSingleStep(0.01)
         self.skip_threshold_spin.setValue(0.95)
         skip_layout.addRow(

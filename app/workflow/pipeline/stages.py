@@ -428,20 +428,17 @@ class OCRStage:
                 roi_regions = frame.metadata.get("roi_regions", [])
 
             # --- Stability cache: reuse previous results for similar frames ---
-            # Two-tier check: very high similarity (threshold+4%) trusts
-            # the frame content alone — overlay-induced ROI fingerprint
-            # changes are ignored because the underlying page hasn't
-            # changed.  Moderate similarity (threshold..threshold+4%)
-            # still requires a matching ROI fingerprint to avoid false
-            # cache hits when scrolling between pages with similar
-            # brightness distributions.  Both thresholds are configurable
-            # via Settings > Plugins > OCR Stage > Stability Threshold.
+            # Bypassed when the FrameSkipOptimizer signals a content
+            # change (frame_changed=True), ensuring fresh OCR runs
+            # immediately after user-visible changes.
+            force_fresh = input_data.get("frame_changed", False)
             roi_fingerprint = self._roi_fingerprint(roi_regions)
             similarity = self._frame_similarity(frame.data)
             frame_is_stable = similarity >= self._STABILITY_THRESHOLD
             roi_match = roi_fingerprint == self._prev_roi_fingerprint
             cache_valid = (
-                self._prev_results is not None
+                not force_fresh
+                and self._prev_results is not None
                 and frame_is_stable
                 and (similarity >= self._HIGH_SIMILARITY_THRESHOLD or roi_match)
             )
@@ -461,6 +458,11 @@ class OCRStage:
                     success=True,
                     data={"text_blocks": self._prev_results},
                     duration_ms=elapsed,
+                )
+            if force_fresh:
+                logger.info(
+                    "[OCRStage] Frame change detected by FrameSkipOptimizer "
+                    "-> forcing fresh OCR (similarity=%.4f)", similarity,
                 )
 
             # --- Mask previous-frame overlay regions to prevent feedback ---

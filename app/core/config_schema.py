@@ -1684,7 +1684,25 @@ class ConfigSchema:
             default='Ctrl+T',
             description='Keyboard shortcut used to trigger the translation pipeline action'
         ))
-        
+        self.add_option(ConfigOption(
+            name='general.screenshot_hotkey',
+            type=str,
+            default='F9',
+            description='Keyboard shortcut to take a screenshot with overlays visible'
+        ))
+        self.add_option(ConfigOption(
+            name='general.recording_flash_hotkey',
+            type=str,
+            default='F10',
+            description='Keyboard shortcut to flash overlays visible for recording (pipeline paused)'
+        ))
+        self.add_option(ConfigOption(
+            name='general.recording_flash_duration',
+            type=float,
+            default=5.0,
+            description='Duration in seconds that overlays stay visible when recording flash is triggered'
+        ))
+
         # Dictionary settings
         self.add_option(ConfigOption(
             name='dictionary.auto_learn',

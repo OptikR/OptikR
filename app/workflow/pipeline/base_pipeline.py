@@ -262,6 +262,55 @@ class BasePipeline(ResourceOwner):
                             type(plugin).__name__, exc,
                         )
 
+    def update_runtime_config(
+        self,
+        plugin_class_name: str,
+        config: dict[str, Any],
+        *,
+        stage_attr: bool = False,
+    ) -> bool:
+        """Push a config update to a running plugin or inner stage.
+
+        *plugin_class_name*: class name of the target (e.g.
+        ``'FrameSkipOptimizer'``).  If the plugin has a ``configure()``
+        method it is called with *config*.
+
+        *stage_attr*: when True, set attributes directly on the inner
+        stage via ``setattr`` (for updating instance variables like
+        ``_STABILITY_THRESHOLD``).
+
+        Returns True if the target was found and updated.
+        """
+        from .plugin_stage import PluginAwareStage
+
+        for stage in self._stages:
+            if not isinstance(stage, PluginAwareStage):
+                continue
+
+            for plugin in stage.pre_plugins + stage.post_plugins:
+                if type(plugin).__name__ == plugin_class_name:
+                    if hasattr(plugin, "configure"):
+                        plugin.configure(config)
+                        logger.info(
+                            "Runtime config pushed to %s: %s",
+                            plugin_class_name, config,
+                        )
+                        return True
+
+            inner = stage.inner_stage
+            if type(inner).__name__ == plugin_class_name:
+                if stage_attr:
+                    for k, v in config.items():
+                        setattr(inner, k, v)
+                    logger.info(
+                        "Runtime config pushed to %s: %s",
+                        plugin_class_name, config,
+                    )
+                    return True
+
+        logger.debug("Runtime config target %s not found", plugin_class_name)
+        return False
+
     def pause(self) -> None:
         """Pause the frame loop.  The loop thread stays alive but sleeps."""
         with self._state_lock:

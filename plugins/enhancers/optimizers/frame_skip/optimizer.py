@@ -148,15 +148,25 @@ class FrameSkipOptimizer:
         pixels = np.array(img).flatten()
         return hashlib.md5(pixels.tobytes()).hexdigest()
 
-    _THUMB_SIZE = (128, 128)
-    _BLOCK_SIZE = 16  # 8x8 grid of 16x16 blocks
+    _THUMB_SIZE = (256, 256)
+    _BLOCK_SIZE = 8  # 32x32 grid of 8x8 blocks
+
+    # Pixels that differ by more than this (0-255) are counted as "changed".
+    _PIXEL_CHANGE_LEVEL = 12
+    # If this fraction of pixels changed significantly, the frame is different.
+    _PIXEL_CHANGE_CAP = 0.005  # 0.5%
 
     def _compute_mse(self, frame1: np.ndarray, frame2: np.ndarray) -> float:
-        """Compute MSE similarity between frames (0-1, higher = more similar).
+        """Compute similarity between frames (0-1, higher = more similar).
 
-        Uses both global MSE and block-max MSE so that localised changes
-        (e.g. a single line of text changing) are detected even when the
-        global average difference is tiny.
+        Three complementary checks (returns the minimum):
+
+        1. **Global MSE** – catches large-scale brightness shifts.
+        2. **Block-max MSE** – catches localised region changes.
+        3. **Changed-pixel ratio** – catches text-content swaps where
+           individual pixels shift by more than ``_PIXEL_CHANGE_LEVEL``
+           but the overall MSE stays high because text-on-text changes
+           are small in a thumbnail.
         """
         sz = self._THUMB_SIZE
         img1 = Image.fromarray(frame1).resize(sz)
@@ -168,8 +178,7 @@ class FrameSkipOptimizer:
         max_mse = 255.0 ** 2
         global_sim = 1.0 - (float(np.mean(diff_sq)) / max_mse)
 
-        # Block-level check: find the single most-changed block.
-        # Collapse colour channels, then reshape into an 8×8 grid of blocks.
+        # Block-level: find the single most-changed block.
         if diff_sq.ndim == 3:
             block_diff = diff_sq.mean(axis=2)
         else:
@@ -182,7 +191,18 @@ class FrameSkipOptimizer:
         blocks = trimmed.reshape(bh, bs, bw, bs).mean(axis=(1, 3))
         block_sim = 1.0 - (float(blocks.max()) / max_mse)
 
-        return min(global_sim, block_sim)
+        # Changed-pixel ratio: count pixels that shifted by more than
+        # the noise floor.  Highly sensitive to text-content swaps.
+        diff_abs = np.abs(arr1 - arr2)
+        if diff_abs.ndim == 3:
+            diff_gray = diff_abs.max(axis=2)
+        else:
+            diff_gray = diff_abs
+        changed_frac = float((diff_gray > self._PIXEL_CHANGE_LEVEL).mean())
+        pixel_sim = 1.0 - (changed_frac / self._PIXEL_CHANGE_CAP)
+        pixel_sim = max(0.0, min(1.0, pixel_sim))
+
+        return min(global_sim, block_sim, pixel_sim)
 
     def _compute_ssim(self, frame1: np.ndarray, frame2: np.ndarray) -> float:
         """Compute structural similarity between frames (0-1, higher = more similar).
@@ -232,6 +252,11 @@ class FrameSkipOptimizer:
             if not similar:
                 self.logger.info(
                     "[FRAME SKIP] Change detected (%s=%.4f, threshold=%.4f)",
+                    self.method, score, effective,
+                )
+            else:
+                self.logger.debug(
+                    "[FRAME SKIP] Similar (%s=%.4f, threshold=%.4f)",
                     self.method, score, effective,
                 )
             return similar
@@ -307,6 +332,7 @@ class FrameSkipOptimizer:
             self.skipped_frames += 1
         else:
             data['skip_processing'] = False
+            data['frame_changed'] = not is_similar
             self.processed_frames += 1
 
         return data

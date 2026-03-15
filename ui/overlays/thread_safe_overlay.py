@@ -90,6 +90,10 @@ class ThreadSafeOverlaySystem(QObject):
             logger.debug("hide_all_translations: on worker thread, using signal")
             self._hide_all_signal.emit(immediate)
     
+    def set_all_capture_visible(self, visible: bool) -> None:
+        """Toggle DXGI capture visibility on every active overlay (thread-safe)."""
+        self.overlay_system.set_all_capture_visible(visible)
+
     def reload_config(self):
         """Reload overlay configuration from config manager."""
         self.overlay_system.reload_config()

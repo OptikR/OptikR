@@ -89,6 +89,8 @@ class MainWindow(QMainWindow):
         # Periodic cache clear timer (every 6 hours while running)
         self._cache_clear_timer: QTimer | None = None
         self._pipeline_toggle_shortcut: QShortcut | None = None
+        self._screenshot_shortcut: QShortcut | None = None
+        self._recording_flash_shortcut: QShortcut | None = None
         self._vision_hotkey_in_progress = False
 
         # Initialize components
@@ -282,6 +284,8 @@ class MainWindow(QMainWindow):
         self._register_pipeline_hotkey()
         QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(self.show_capture_region_selector)
         QShortcut(QKeySequence("Ctrl+M"), self).activated.connect(self.show_performance_monitor)
+        self._register_screenshot_hotkey()
+        self._register_recording_flash_hotkey()
 
     def _register_pipeline_hotkey(self) -> None:
         """Register (or re-register) the user-configured pipeline hotkey."""
@@ -313,6 +317,89 @@ class MainWindow(QMainWindow):
             self._on_pipeline_hotkey_triggered
         )
         logger.info("Registered pipeline hotkey: %s", hotkey)
+
+    def _register_screenshot_hotkey(self) -> None:
+        """Register (or re-register) the user-configured screenshot hotkey."""
+        if self._screenshot_shortcut is not None:
+            try:
+                self._screenshot_shortcut.activated.disconnect(
+                    self._take_screenshot_with_overlays
+                )
+            except Exception:
+                pass
+            self._screenshot_shortcut.setParent(None)
+            self._screenshot_shortcut.deleteLater()
+            self._screenshot_shortcut = None
+
+        hotkey = "F9"
+        if self.config_manager:
+            hotkey = self.config_manager.get_setting(
+                "general.screenshot_hotkey", "F9"
+            )
+        hotkey = str(hotkey or "").strip() or "F9"
+
+        sequence = QKeySequence(hotkey)
+        if sequence.isEmpty():
+            hotkey = "F9"
+            sequence = QKeySequence(hotkey)
+
+        self._screenshot_shortcut = QShortcut(sequence, self)
+        self._screenshot_shortcut.activated.connect(
+            self._take_screenshot_with_overlays
+        )
+        logger.info("Registered screenshot hotkey: %s", hotkey)
+
+    def _register_recording_flash_hotkey(self) -> None:
+        """Register (or re-register) the recording flash hotkey."""
+        if self._recording_flash_shortcut is not None:
+            try:
+                self._recording_flash_shortcut.activated.disconnect(
+                    self._flash_overlays_for_recording
+                )
+            except Exception:
+                pass
+            self._recording_flash_shortcut.setParent(None)
+            self._recording_flash_shortcut.deleteLater()
+            self._recording_flash_shortcut = None
+
+        hotkey = "F10"
+        if self.config_manager:
+            hotkey = self.config_manager.get_setting(
+                "general.recording_flash_hotkey", "F10"
+            )
+        hotkey = str(hotkey or "").strip() or "F10"
+
+        sequence = QKeySequence(hotkey)
+        if sequence.isEmpty():
+            hotkey = "F10"
+            sequence = QKeySequence(hotkey)
+
+        self._recording_flash_shortcut = QShortcut(sequence, self)
+        self._recording_flash_shortcut.activated.connect(
+            self._flash_overlays_for_recording
+        )
+        logger.info("Registered recording flash hotkey: %s", hotkey)
+
+    def _flash_overlays_for_recording(self) -> None:
+        """Show overlays to screen capture for 5 seconds (pipeline paused)."""
+        if not self.startup_pipeline:
+            self.statusBar().showMessage("Pipeline not initialized.", 2000)
+            return
+
+        duration = 5.0
+        if self.config_manager:
+            duration = self.config_manager.get_setting(
+                "general.recording_flash_duration", 5.0
+            )
+
+        ok = self.startup_pipeline.flash_overlays_for_recording(duration)
+        if ok:
+            self.statusBar().showMessage(
+                f"Recording: overlays visible for {duration:.0f}s (pipeline paused)", 
+                int(duration * 1000),
+            )
+        else:
+            self.statusBar().showMessage("Recording flash already active or no overlays.", 2000)
 
     def _on_pipeline_hotkey_triggered(self) -> None:
         """Handle pipeline hotkey with mode-aware behavior.
@@ -378,6 +465,35 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(0, _finish)
 
         threading.Thread(target=_worker, daemon=True).start()
+
+    def _take_screenshot_with_overlays(self) -> None:
+        """Take a screenshot of the capture region with overlays visible."""
+        logger.info("Screenshot hotkey triggered")
+        if not self.startup_pipeline:
+            self.statusBar().showMessage("Pipeline not initialized.", 2000)
+            return
+
+        self.statusBar().showMessage("Taking screenshot...", 2000)
+        pixmap = self.startup_pipeline.capture_screenshot_with_overlays()
+        if pixmap is None or pixmap.isNull():
+            self.statusBar().showMessage("Screenshot failed — check logs.", 3000)
+            return
+
+        clipboard = QApplication.clipboard()
+        if clipboard:
+            clipboard.setPixmap(pixmap)
+
+        import os, time as _time
+        screenshots_dir = os.path.join("user_data", "screenshots")
+        os.makedirs(screenshots_dir, exist_ok=True)
+        ts = _time.strftime("%Y%m%d_%H%M%S")
+        path = os.path.join(screenshots_dir, f"optikr_{ts}.png")
+        pixmap.save(path, "PNG")
+
+        self.statusBar().showMessage(
+            f"Screenshot saved to {path} and copied to clipboard.", 4000
+        )
+        logger.info("Screenshot with overlays saved: %s", path)
 
     def _show_help(self) -> None:
         """Show the help dialog (keyboard shortcut handler)."""
@@ -730,7 +846,9 @@ class MainWindow(QMainWindow):
         self._sync_sidebar_languages()
         self.update_sidebar_ocr_display()
         self._register_pipeline_hotkey()
-        
+        self._register_screenshot_hotkey()
+        self._register_recording_flash_hotkey()
+
         # Show confirmation message
         QMessageBox.information(
             self,
@@ -773,7 +891,9 @@ class MainWindow(QMainWindow):
             # Sync sidebar with loaded settings
             self._sync_sidebar_languages()
         self._register_pipeline_hotkey()
-        
+        self._register_screenshot_hotkey()
+        self._register_recording_flash_hotkey()
+
         # Update status bar
         self.statusBar().showMessage(tr("status_settings_loaded"), 2000)
     

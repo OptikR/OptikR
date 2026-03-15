@@ -1122,6 +1122,166 @@ class StartupPipeline(QObject):
                     "Failed to start translation. Try stopping and starting again, or check the capture region."
                 )
 
+    _recording_flash_active = False
+
+    def flash_overlays_for_recording(self, duration: float = 5.0) -> bool:
+        """Make overlays visible to screen capture for *duration* seconds.
+
+        The pipeline is paused while overlays are exposed so no new
+        frames are captured and the OCR feedback loop cannot occur.
+        A ``QTimer`` re-hides the overlays and resumes the pipeline
+        automatically.
+
+        Returns ``False`` if the flash is already active or there is
+        nothing to flash.
+        """
+        if self._recording_flash_active:
+            self.logger.info("Recording flash already active, ignoring")
+            return False
+        if not self.overlay_system:
+            self.logger.warning("No overlay system for recording flash")
+            return False
+
+        was_running = self.is_running()
+        if was_running and self.pipeline:
+            self.pipeline.pause()
+
+        self.overlay_system.set_all_capture_visible(True)
+        self._recording_flash_active = True
+        self.logger.info("Recording flash: overlays visible for %.1fs", duration)
+
+        from PyQt6.QtCore import QTimer
+
+        def _end_flash():
+            if self.overlay_system:
+                self.overlay_system.set_all_capture_visible(False)
+            self.logger.info("Recording flash ended, waiting for compositor...")
+
+            def _resume_after_compositor():
+                self._recording_flash_active = False
+                if was_running and self.pipeline:
+                    self.pipeline.resume()
+                self.logger.info("Pipeline resumed after compositor settle")
+
+            QTimer.singleShot(400, _resume_after_compositor)
+
+        QTimer.singleShot(int(duration * 1000), _end_flash)
+        return True
+
+    def capture_screenshot_with_overlays(self) -> "QPixmap | None":
+        """Capture a screenshot of the capture region with overlays composited.
+
+        Temporarily makes overlay windows visible to screen-capture APIs,
+        grabs the region, then re-hides them.  The pipeline is paused for
+        the duration so the brief WDA_NONE window cannot cause a feedback
+        frame.
+
+        Returns a ``QPixmap`` on success, *None* on failure.
+        """
+        if not self.overlay_system or not self.capture_region:
+            self.logger.warning("Cannot take screenshot: no overlay system or capture region")
+            return None
+
+        was_running = self.is_running()
+        try:
+            if was_running and self.pipeline:
+                self.pipeline.pause()
+
+            self.overlay_system.set_all_capture_visible(True)
+
+            from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+            if app:
+                app.processEvents()
+
+            import time as _time
+            _time.sleep(0.15)
+
+            if app:
+                app.processEvents()
+
+            r = self.capture_region.rectangle
+            self.logger.info(
+                "Taking screenshot at (%d, %d) %dx%d",
+                r.x, r.y, r.width, r.height,
+            )
+
+            pixmap = self._grab_region(r.x, r.y, r.width, r.height)
+            if pixmap is None or pixmap.isNull():
+                self.logger.warning("Screenshot grab returned null pixmap")
+                return None
+
+            self.logger.info("Screenshot captured: %dx%d", pixmap.width(), pixmap.height())
+            return pixmap
+        except Exception as exc:
+            self.logger.error("Screenshot failed: %s", exc, exc_info=True)
+            return None
+        finally:
+            if self.overlay_system:
+                self.overlay_system.set_all_capture_visible(False)
+            if was_running and self.pipeline:
+                self.pipeline.resume()
+
+    @staticmethod
+    def _grab_region(x: int, y: int, w: int, h: int):
+        """Grab a screen region, trying native Win32 first then Qt fallback."""
+        import sys
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                from ctypes import wintypes
+                from PyQt6.QtGui import QImage, QPixmap
+
+                gdi32 = ctypes.windll.gdi32
+                user32 = ctypes.windll.user32
+
+                hdc_screen = user32.GetDC(0)
+                hdc_mem = gdi32.CreateCompatibleDC(hdc_screen)
+                hbmp = gdi32.CreateCompatibleBitmap(hdc_screen, w, h)
+                gdi32.SelectObject(hdc_mem, hbmp)
+                gdi32.BitBlt(hdc_mem, 0, 0, w, h, hdc_screen, x, y, 0x00CC0020)
+
+                class BITMAPINFOHEADER(ctypes.Structure):
+                    _fields_ = [
+                        ("biSize", wintypes.DWORD),
+                        ("biWidth", wintypes.LONG),
+                        ("biHeight", wintypes.LONG),
+                        ("biPlanes", wintypes.WORD),
+                        ("biBitCount", wintypes.WORD),
+                        ("biCompression", wintypes.DWORD),
+                        ("biSizeImage", wintypes.DWORD),
+                        ("biXPelsPerMeter", wintypes.LONG),
+                        ("biYPelsPerMeter", wintypes.LONG),
+                        ("biClrUsed", wintypes.DWORD),
+                        ("biClrImportant", wintypes.DWORD),
+                    ]
+
+                bmi = BITMAPINFOHEADER()
+                bmi.biSize = ctypes.sizeof(BITMAPINFOHEADER)
+                bmi.biWidth = w
+                bmi.biHeight = -h  # top-down
+                bmi.biPlanes = 1
+                bmi.biBitCount = 32
+                bmi.biCompression = 0
+
+                buf = (ctypes.c_ubyte * (w * h * 4))()
+                gdi32.GetDIBits(hdc_mem, hbmp, 0, h, buf, ctypes.byref(bmi), 0)
+
+                gdi32.DeleteObject(hbmp)
+                gdi32.DeleteDC(hdc_mem)
+                user32.ReleaseDC(0, hdc_screen)
+
+                img = QImage(bytes(buf), w, h, w * 4, QImage.Format.Format_ARGB32)
+                return QPixmap.fromImage(img.copy())
+            except Exception:
+                pass  # fall through to Qt method
+
+        from PyQt6.QtGui import QGuiApplication
+        screen = QGuiApplication.primaryScreen()
+        if screen is None:
+            return None
+        return screen.grabWindow(0, x, y, w, h)
+
     def run_vision_single_frame(self) -> tuple[bool, int, str]:
         """Capture and process exactly one frame in vision mode.
 
@@ -1546,6 +1706,18 @@ class StartupPipeline(QObject):
         if self.multi_region_enabled and self.multi_region_manager:
             return getattr(self.multi_region_manager, 'is_running', False)
         return bool(self.pipeline and self.pipeline.is_running())
+
+    def update_runtime_config(
+        self,
+        plugin_class_name: str,
+        config: dict,
+        **kwargs,
+    ) -> bool:
+        """Forward runtime config update to the inner BasePipeline."""
+        if self.pipeline is not None:
+            return self.pipeline.update_runtime_config(
+                plugin_class_name, config, **kwargs)
+        return False
 
     def get_metrics(self) -> 'PipelineStats':
         """Return combined metrics from BasePipeline stats and translation layer.

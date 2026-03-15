@@ -295,6 +295,12 @@ class PipelineManagementTab(TranslatableMixin, QWidget):
         pl.apply_btn.clicked.connect(self._apply_plugin_settings)
         pl.settingChanged.connect(self.settingChanged.emit)
 
+        # Live threshold updates → push to running pipeline
+        pl.skip_threshold_spin.valueChanged.connect(
+            self._push_frame_skip_threshold)
+        pl.ocr_stability_threshold_spin.valueChanged.connect(
+            self._push_ocr_stability_threshold)
+
         # Detailed pipeline mode combo → overview sync
         pl.detailed_pipeline_mode_combo.currentIndexChanged.connect(
             self._sync_detailed_pipeline_mode_to_overview)
@@ -424,6 +430,37 @@ class PipelineManagementTab(TranslatableMixin, QWidget):
 
         logger.info("Master plugin switch: %s",
                      'ENABLED' if enabled else 'DISABLED')
+
+    # ------------------------------------------------------------------
+    # Live threshold push to running pipeline
+    # ------------------------------------------------------------------
+
+    def _push_frame_skip_threshold(self, value: float) -> None:
+        """Push FrameSkipOptimizer threshold change to the running pipeline."""
+        if self.pipeline and self.pipeline.is_running():
+            self.pipeline.update_runtime_config(
+                "FrameSkipOptimizer",
+                {"similarity_threshold": value},
+            )
+        if self.config_manager:
+            self.config_manager.set_setting(
+                'ocr.frame_skip_threshold', value)
+
+    def _push_ocr_stability_threshold(self, value: float) -> None:
+        """Push OCRStage stability threshold change to the running pipeline."""
+        if self.pipeline and self.pipeline.is_running():
+            high = min(0.99, value + 0.04)
+            self.pipeline.update_runtime_config(
+                "OCRStage",
+                {
+                    "_STABILITY_THRESHOLD": value,
+                    "_HIGH_SIMILARITY_THRESHOLD": high,
+                },
+                stage_attr=True,
+            )
+        if self.config_manager:
+            self.config_manager.set_setting(
+                'ocr.stability_threshold', value)
 
     def _on_overview_master_changed(self, state):
         """Handle overview tab master switch change."""

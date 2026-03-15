@@ -158,10 +158,6 @@ class PyQt6OverlayAdapter:
             self.config_manager.get_setting('overlay.animation_in', 'FADE'))
         animation_out = self._parse_animation_type(
             self.config_manager.get_setting('overlay.animation_out', 'FADE'))
-        visible_in_screenshots = self.config_manager.get_setting(
-            'overlay.visible_in_screenshots', False
-        )
-
         config = OverlayConfig(
             style=style,
             click_through=True,
@@ -171,7 +167,7 @@ class PyQt6OverlayAdapter:
             animation_out=animation_out,
             animation_duration=self.config_manager.get_setting('overlay.animation_duration', 300),
             auto_hide_delay=0,  # Pipeline overlays persist until replaced by next frame
-            exclude_from_capture=not visible_in_screenshots,
+            exclude_from_capture=True,  # always hide from DXGI; use F9 for screenshots
         )
 
         logger.debug("Overlay configuration loaded successfully")
@@ -295,6 +291,10 @@ class PyQt6OverlayAdapter:
     def get_active_count(self) -> int:
         """Get number of active overlays."""
         return self.manager.get_active_count()
+
+    def set_all_capture_visible(self, visible: bool) -> None:
+        """Toggle DXGI capture visibility on every active overlay."""
+        self.manager.set_all_capture_visible(visible)
 
     def reload_config(self):
         """

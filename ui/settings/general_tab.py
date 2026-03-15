@@ -54,6 +54,12 @@ class GeneralSettingsTab(TranslatableMixin, QWidget):
         self.pipeline_hotkey_display = None
         self.pipeline_hotkey_button = None
         self.pipeline_hotkey_value = "Ctrl+T"
+        self.screenshot_hotkey_display = None
+        self.screenshot_hotkey_button = None
+        self.screenshot_hotkey_value = "F9"
+        self.recording_flash_hotkey_display = None
+        self.recording_flash_hotkey_button = None
+        self.recording_flash_hotkey_value = "F10"
         # Manga mode
         self.manga_mode_check = None
         
@@ -137,6 +143,8 @@ class GeneralSettingsTab(TranslatableMixin, QWidget):
         if self.minimize_tray_check:
             state['minimize_tray'] = self.minimize_tray_check.isChecked()
         state['pipeline_hotkey'] = self.pipeline_hotkey_value
+        state['screenshot_hotkey'] = self.screenshot_hotkey_value
+        state['recording_flash_hotkey'] = self.recording_flash_hotkey_value
         # Manga mode
         if self.manga_mode_check:
             state['manga_mode'] = self.manga_mode_check.isChecked()
@@ -405,7 +413,40 @@ class GeneralSettingsTab(TranslatableMixin, QWidget):
         hotkey_row.addWidget(self.pipeline_hotkey_display, 1)
         hotkey_row.addWidget(self.pipeline_hotkey_button)
         layout.addLayout(hotkey_row)
-        
+
+        screenshot_row = QHBoxLayout()
+        screenshot_label = QLabel("Screenshot hotkey:")
+        screenshot_label.setStyleSheet("font-size: 9pt;")
+        self.screenshot_hotkey_display = QLineEdit()
+        self.screenshot_hotkey_display.setReadOnly(True)
+        self.screenshot_hotkey_display.setText(self.screenshot_hotkey_value)
+        self.screenshot_hotkey_display.setToolTip(
+            "Captures the region with overlays visible and copies to clipboard."
+        )
+        self.screenshot_hotkey_button = QPushButton("Change...")
+        self.screenshot_hotkey_button.clicked.connect(self._show_screenshot_hotkey_dialog)
+        screenshot_row.addWidget(screenshot_label)
+        screenshot_row.addWidget(self.screenshot_hotkey_display, 1)
+        screenshot_row.addWidget(self.screenshot_hotkey_button)
+        layout.addLayout(screenshot_row)
+
+        recording_row = QHBoxLayout()
+        recording_label = QLabel("Recording flash hotkey:")
+        recording_label.setStyleSheet("font-size: 9pt;")
+        self.recording_flash_hotkey_display = QLineEdit()
+        self.recording_flash_hotkey_display.setReadOnly(True)
+        self.recording_flash_hotkey_display.setText(self.recording_flash_hotkey_value)
+        self.recording_flash_hotkey_display.setToolTip(
+            "Shows overlays to screen capture for 5 seconds (pipeline paused). "
+            "Useful for recording demo videos."
+        )
+        self.recording_flash_hotkey_button = QPushButton("Change...")
+        self.recording_flash_hotkey_button.clicked.connect(self._show_recording_flash_hotkey_dialog)
+        recording_row.addWidget(recording_label)
+        recording_row.addWidget(self.recording_flash_hotkey_display, 1)
+        recording_row.addWidget(self.recording_flash_hotkey_button)
+        layout.addLayout(recording_row)
+
         parent_layout.addWidget(group)
 
     def _show_pipeline_hotkey_dialog(self):
@@ -464,6 +505,122 @@ class GeneralSettingsTab(TranslatableMixin, QWidget):
         self.pipeline_hotkey_value = sequence
         if self.pipeline_hotkey_display:
             self.pipeline_hotkey_display.setText(sequence)
+        self.on_change()
+
+    def _show_screenshot_hotkey_dialog(self):
+        """Open dialog to capture a new screenshot hotkey."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Set screenshot hotkey")
+        dialog.setModal(True)
+        dialog.setMinimumWidth(420)
+
+        layout = QVBoxLayout(dialog)
+        desc = QLabel(
+            "Press the key combination you want to use.\n"
+            "Takes a screenshot of the capture region with overlays visible."
+        )
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        key_edit = QKeySequenceEdit(dialog)
+        key_edit.setKeySequence(self.screenshot_hotkey_value)
+        layout.addWidget(key_edit)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+            | QDialogButtonBox.StandardButton.RestoreDefaults
+        )
+        ok_btn = buttons.button(QDialogButtonBox.StandardButton.Ok)
+        reset_btn = buttons.button(QDialogButtonBox.StandardButton.RestoreDefaults)
+        if ok_btn:
+            ok_btn.setText("Apply")
+        if reset_btn:
+            reset_btn.setText("Default (F9)")
+        layout.addWidget(buttons)
+
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+
+        def _set_default():
+            key_edit.setKeySequence("F9")
+
+        if reset_btn:
+            reset_btn.clicked.connect(_set_default)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        sequence = key_edit.keySequence().toString().strip()
+        if not sequence:
+            QMessageBox.warning(
+                self,
+                "Invalid hotkey",
+                "Please enter a valid key combination."
+            )
+            return
+
+        self.screenshot_hotkey_value = sequence
+        if self.screenshot_hotkey_display:
+            self.screenshot_hotkey_display.setText(sequence)
+        self.on_change()
+
+    def _show_recording_flash_hotkey_dialog(self):
+        """Open dialog to capture a new recording flash hotkey."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Set recording flash hotkey")
+        dialog.setModal(True)
+        dialog.setMinimumWidth(420)
+
+        layout = QVBoxLayout(dialog)
+        desc = QLabel(
+            "Press the key combination you want to use.\n"
+            "Shows overlays in screen capture for 5 seconds (pipeline paused)."
+        )
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        key_edit = QKeySequenceEdit(dialog)
+        key_edit.setKeySequence(self.recording_flash_hotkey_value)
+        layout.addWidget(key_edit)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+            | QDialogButtonBox.StandardButton.RestoreDefaults
+        )
+        ok_btn = buttons.button(QDialogButtonBox.StandardButton.Ok)
+        reset_btn = buttons.button(QDialogButtonBox.StandardButton.RestoreDefaults)
+        if ok_btn:
+            ok_btn.setText("Apply")
+        if reset_btn:
+            reset_btn.setText("Default (F10)")
+        layout.addWidget(buttons)
+
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+
+        def _set_default():
+            key_edit.setKeySequence("F10")
+
+        if reset_btn:
+            reset_btn.clicked.connect(_set_default)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        sequence = key_edit.keySequence().toString().strip()
+        if not sequence:
+            QMessageBox.warning(
+                self,
+                "Invalid hotkey",
+                "Please enter a valid key combination."
+            )
+            return
+
+        self.recording_flash_hotkey_value = sequence
+        if self.recording_flash_hotkey_display:
+            self.recording_flash_hotkey_display.setText(sequence)
         self.on_change()
 
     def _create_manga_mode_section(self, parent_layout):
@@ -894,7 +1051,19 @@ class GeneralSettingsTab(TranslatableMixin, QWidget):
             ) or 'Ctrl+T'
             if self.pipeline_hotkey_display is not None:
                 self.pipeline_hotkey_display.setText(self.pipeline_hotkey_value)
-            
+
+            self.screenshot_hotkey_value = self.config_manager.get_setting(
+                'general.screenshot_hotkey', 'F9'
+            ) or 'F9'
+            if self.screenshot_hotkey_display is not None:
+                self.screenshot_hotkey_display.setText(self.screenshot_hotkey_value)
+
+            self.recording_flash_hotkey_value = self.config_manager.get_setting(
+                'general.recording_flash_hotkey', 'F10'
+            ) or 'F10'
+            if self.recording_flash_hotkey_display is not None:
+                self.recording_flash_hotkey_display.setText(self.recording_flash_hotkey_value)
+
             # Load manga mode
             manga_mode = self.config_manager.get_setting('general.manga_mode', False)
             if self.manga_mode_check is not None:
@@ -981,7 +1150,15 @@ class GeneralSettingsTab(TranslatableMixin, QWidget):
                 'general.pipeline_toggle_hotkey',
                 (self.pipeline_hotkey_value or 'Ctrl+T').strip() or 'Ctrl+T'
             )
-            
+            self.config_manager.set_setting(
+                'general.screenshot_hotkey',
+                (self.screenshot_hotkey_value or 'F9').strip() or 'F9'
+            )
+            self.config_manager.set_setting(
+                'general.recording_flash_hotkey',
+                (self.recording_flash_hotkey_value or 'F10').strip() or 'F10'
+            )
+
             # Save manga mode
             if self.manga_mode_check is not None:
                 self.config_manager.set_setting(

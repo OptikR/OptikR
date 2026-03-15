@@ -302,6 +302,14 @@ class HelpDialog(QDialog):
                 <td><b>Ctrl + M</b></td>
                 <td>Open performance monitor</td>
             </tr>
+            <tr>
+                <td><b>F9</b></td>
+                <td>Screenshot with overlays (saves to file &amp; clipboard)</td>
+            </tr>
+            <tr>
+                <td><b>F10</b></td>
+                <td>Recording flash — show overlays for 5s (pipeline paused)</td>
+            </tr>
         </table>
         
         <p><i>All shortcuts are active when the main window has focus.</i></p>
@@ -350,9 +358,6 @@ class HelpDialog(QDialog):
         
         <h3>Credits</h3>
         <p>Built with open-source technologies and community contributions.</p>
-
-        <h3>Contact</h3>
-        <p>optikr@outlook.de</p>
 
         <h3>Special Thanks</h3>
         <p>Tony without you this wouldnt be possible!</p>

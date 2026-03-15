@@ -322,18 +322,14 @@ class TranslationOverlay(QWidget):
             return self.position
     
     def _exclude_from_capture(self):
-        """Control whether screen capture APIs can see this overlay.
+        """Always exclude overlays from DXGI Desktop Duplication capture.
 
-        When ``config.exclude_from_capture`` is True (default), uses
-        ``SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`` so DXGI
-        Desktop Duplication (BetterCam) never sees the overlay,
-        preventing the OCR-reads-its-own-overlay feedback loop.
+        Uses ``WDA_EXCLUDEFROMCAPTURE`` so BetterCam never sees the
+        overlay, preventing the OCR-reads-its-own-overlay feedback loop.
 
-        When False (user enabled "overlay visible in screenshots"), the
-        affinity is reset to ``WDA_NONE`` so the overlay appears in
-        screenshots and screen recordings.  Note: this may cause the
-        pipeline to OCR its own overlays if they overlap the capture
-        region.
+        For "overlay visible in screenshots", use the application-level
+        screenshot feature (``capture_screenshot_with_overlays``) which
+        temporarily reveals overlays for a single grab.
         """
         import sys
         if sys.platform != 'win32':
@@ -341,11 +337,6 @@ class TranslationOverlay(QWidget):
         try:
             import ctypes
             hwnd = int(self.winId())
-
-            if not self.config.exclude_from_capture:
-                WDA_NONE = 0x00000000
-                ctypes.windll.user32.SetWindowDisplayAffinity(hwnd, WDA_NONE)
-                return
 
             WDA_EXCLUDEFROMCAPTURE = 0x00000011
             ok = ctypes.windll.user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
@@ -369,6 +360,23 @@ class TranslationOverlay(QWidget):
             )
         except Exception:
             logger.warning("SetWindowDisplayAffinity unavailable", exc_info=True)
+
+    def set_capture_visible(self, visible: bool) -> None:
+        """Temporarily toggle overlay visibility to screen capture APIs.
+
+        Used by the screenshot-with-overlays feature to briefly reveal
+        overlays before a grab.
+        """
+        import sys
+        if sys.platform != 'win32':
+            return
+        try:
+            import ctypes
+            hwnd = int(self.winId())
+            affinity = 0x00000000 if visible else 0x00000011
+            ctypes.windll.user32.SetWindowDisplayAffinity(hwnd, affinity)
+        except Exception:
+            pass
 
     def show_animated(self):
         """Show overlay with animation."""
@@ -745,6 +753,11 @@ class OverlayManager(QObject):
         if overlay:
             self._return_to_pool(overlay)
     
+    def set_all_capture_visible(self, visible: bool) -> None:
+        """Toggle DXGI capture visibility on every active overlay."""
+        for overlay in self.active_overlays.values():
+            overlay.set_capture_visible(visible)
+
     def cleanup(self):
         """Cleanup all overlays."""
         logger.debug("Cleaning up overlays (active: %d, pooled: %d)", 
