@@ -32,8 +32,10 @@ class CapturePluginManager:
         self._active_plugin: str | None = None
         self._unified = UnifiedPluginManager(self._plugin_directories)
 
-        # Lazy-initialised backend cameras
+        # BetterCam backend (streaming mode for fresh DXGI frames)
         self._bettercam_camera = None
+        self._bettercam_streaming = False
+        self._bettercam_region: tuple[int, ...] | None = None
 
     # ------------------------------------------------------------------
     # Plugin directories
@@ -151,68 +153,83 @@ class CapturePluginManager:
     # -- backend helpers ------------------------------------------------
 
     def _capture_bettercam(self, region_data: dict) -> np.ndarray | None:
-        if self._bettercam_camera is None:
-            try:
-                import bettercam
-                self._bettercam_camera = bettercam.create(output_color="BGR")
-                if self._bettercam_camera is None:
-                    self.logger.error("BetterCam camera creation returned None")
-                    return None
-                self.logger.info("BetterCam camera initialised")
-            except Exception as e:
-                self.logger.error("Failed to initialise BetterCam: %s", e)
-                return None
-
-        return self._grab_with_fallback(self._bettercam_camera, region_data, "BetterCam")
-
-    def _grab_with_fallback(self, camera, region_data: dict, label: str) -> np.ndarray | None:
-        """Try a region grab, fall back to full-screen + crop.
-
-        If the DXGI duplication handle is lost (AcquireNextFrame on None),
-        delete and recreate the BetterCam instance once before giving up.
-        """
         x, y = region_data['x'], region_data['y']
         w, h = region_data['width'], region_data['height']
+        monitor_id = region_data.get('monitor_id', 0)
+        target_region = (x, y, x + w, y + h)
+
+        if not self._bettercam_streaming:
+            self._start_bettercam_stream(monitor_id, target_region)
+            if not self._bettercam_streaming:
+                return None
+
+        if self._bettercam_region != target_region:
+            self._start_bettercam_stream(monitor_id, target_region)
 
         try:
-            frame = camera.grab(region=(x, y, x + w, y + h))
+            frame = self._bettercam_camera.get_latest_frame()
             if frame is not None:
                 return frame
-
-            self.logger.warning("%s region grab returned None, trying full screen", label)
-            frame = camera.grab()
-            if frame is not None:
-                return frame[y:y + h, x:x + w]
-        except AttributeError as e:
-            if "AcquireNextFrame" in str(e):
-                self.logger.warning("%s DXGI handle lost, recreating camera...", label)
-                self._recreate_bettercam()
-                return None
-            self.logger.error("%s capture error: %s", label, e)
         except Exception as e:
-            self.logger.error("%s capture error: %s", label, e)
+            self.logger.warning("BetterCam get_latest_frame failed: %s", e)
+            self._stop_bettercam_stream()
 
         return None
 
-    def _recreate_bettercam(self) -> None:
-        """Tear down and recreate the BetterCam instance."""
-        try:
-            if self._bettercam_camera is not None:
-                try:
-                    del self._bettercam_camera
-                except Exception:
-                    pass
-                self._bettercam_camera = None
+    def _start_bettercam_stream(self, monitor_id: int, region: tuple[int, ...]) -> None:
+        """Start (or restart) BetterCam in continuous-capture mode."""
+        import time
 
+        self._stop_bettercam_stream()
+
+        try:
             import bettercam
-            self._bettercam_camera = bettercam.create(output_color="BGR")
-            if self._bettercam_camera is not None:
-                self.logger.info("BetterCam camera recreated successfully")
-            else:
-                self.logger.error("BetterCam recreation returned None")
+
+            if self._bettercam_camera is None:
+                self._bettercam_camera = bettercam.create(
+                    output_idx=monitor_id, output_color="BGR",
+                )
+                if self._bettercam_camera is None:
+                    self.logger.error("BetterCam camera creation returned None")
+                    return
+
+            self._bettercam_camera.start(region=region, target_fps=60)
+            self._bettercam_streaming = True
+            self._bettercam_region = region
+
+            time.sleep(0.15)
+            for _ in range(3):
+                self._bettercam_camera.get_latest_frame()
+                time.sleep(0.03)
+
+            self.logger.info(
+                "BetterCam streaming started (monitor=%d, region=%s)",
+                monitor_id, region,
+            )
         except Exception as e:
-            self.logger.error("Failed to recreate BetterCam: %s", e)
-            self._bettercam_camera = None
+            self.logger.error("Failed to start BetterCam stream: %s", e)
+            self._bettercam_streaming = False
+
+    def _stop_bettercam_stream(self) -> None:
+        """Stop the BetterCam streaming capture."""
+        if self._bettercam_camera is not None and self._bettercam_streaming:
+            try:
+                self._bettercam_camera.stop()
+            except Exception:
+                pass
+        self._bettercam_streaming = False
+        self._bettercam_region = None
+
+    def force_refresh(self, monitor_id: int = 0) -> None:
+        """Stop the BetterCam stream so the next capture starts a fresh one.
+
+        Does NOT release the camera -- BetterCam uses a global singleton
+        registry, so ``release()`` + ``create()`` returns the same stale
+        instance.  Stopping and restarting the stream is sufficient to
+        get fresh DXGI frames.
+        """
+        self.logger.info("Force-refreshing BetterCam capture (monitor=%d)", monitor_id)
+        self._stop_bettercam_stream()
 
     @staticmethod
     def _capture_pil(region_data: dict) -> np.ndarray | None:
@@ -253,6 +270,7 @@ class CapturePluginManager:
 
     def cleanup(self) -> None:
         """Release backend resources."""
+        self._stop_bettercam_stream()
         if self._bettercam_camera is not None:
             try:
                 self._bettercam_camera.release()
