@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class GatedFeature(Enum):
     """Enumerates all features subject to hardware gating."""
     GPU_MEMORY_OPTIMIZATION = "gpu_memory_optimization"
-    DIRECTX_CAPTURE = "directx_capture"
+    BETTERCAM_CAPTURE = "bettercam_capture"
     EASYOCR = "easyocr"
     PADDLEOCR = "paddleocr"
     MOKURO = "mokuro"
@@ -58,11 +58,11 @@ class HardwareCapabilityGate:
                 config_key="experimental.gpu_memory_optimization",
                 description="GPU Memory Optimization (requires CUDA)",
             ),
-            GatedFeature.DIRECTX_CAPTURE: FeatureGateEntry(
-                feature=GatedFeature.DIRECTX_CAPTURE,
+            GatedFeature.BETTERCAM_CAPTURE: FeatureGateEntry(
+                feature=GatedFeature.BETTERCAM_CAPTURE,
                 requirement=HardwareRequirement.GPU,
                 config_key="capture.method",
-                description="DirectX Desktop Duplication capture",
+                description="BetterCam GPU capture (DXGI Desktop Duplication)",
             ),
             GatedFeature.EASYOCR: FeatureGateEntry(
                 feature=GatedFeature.EASYOCR,
@@ -145,7 +145,7 @@ class HardwareCapabilityGate:
                 self._config_manager.set_setting(entry.config_key, "tesseract")
         elif entry.config_key == "capture.method":
             current = self._config_manager.get_setting(entry.config_key, "")
-            if current == "directx":
+            if current in ("directx", "bettercam", "auto"):
                 self._config_manager.set_setting(entry.config_key, "screenshot")
         elif entry.feature == GatedFeature.QWEN3_VL:
             self._config_manager.set_setting(entry.config_key, False)
