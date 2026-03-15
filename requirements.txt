@@ -124,10 +124,9 @@ nvidia-ml-py>=12.0.0  # Optional: NVIDIA GPU monitoring
 # numba>=0.57.0  # JIT compiler
 
 # ============================================================================
-# Audio Translation Plugin (Optional - Uncomment if needed)
+# Audio Translation Plugin (Optional)
 # ============================================================================
-# openai-whisper>=20231117
-# pyaudio>=0.2.13
-# pyttsx3>=2.90
-# webrtcvad>=2.0.10  # Voice Activity Detection
-# TTS>=0.22.0  # Better TTS quality
+# Audio deps live in a separate file to manage torch conflicts safely:
+#   pip install -r requirements-audio.txt
+#   pip install openai-whisper --no-deps
+# See requirements-audio.txt for full instructions.

@@ -1,0 +1,68 @@
+# OptikR Requirements — Audio Translation
+# Install: pip install -r requirements-audio.txt
+#
+# These are the dependencies for real-time audio translation, speech-to-text
+# (Whisper), text-to-speech, push-to-talk, and game voice chat integration.
+#
+# ============================================================================
+# IMPORTANT — Install order to protect your CUDA PyTorch build:
+#
+#   1. Base deps:    pip install -r requirements.txt
+#   2. PyTorch:      pip install -r requirements-gpu.txt  (or requirements-cpu.txt)
+#   3. Audio deps:   pip install -r requirements-audio.txt
+#   4. Whisper:      pip install openai-whisper --no-deps
+#   5. (Optional)    pip install coqui-tts  (torch no longer bundled since 0.27.4)
+#
+#   Step 4 MUST use --no-deps because openai-whisper declares torch as a
+#   dependency; pip would otherwise pull a CPU-only torch wheel from PyPI and
+#   silently overwrite your CUDA build.
+#
+#   The first-run setup wizard handles all of this automatically when you
+#   enable the "Audio Translation" option.
+# ============================================================================
+
+# ============================================================================
+# Audio Capture & Playback
+# ============================================================================
+pyaudio>=0.2.13         # Microphone input / speaker output via PortAudio
+pyttsx3>=2.90           # Offline system TTS (lightweight fallback)
+
+# ============================================================================
+# Voice Activity Detection
+# ============================================================================
+webrtcvad>=2.0.10       # WebRTC-based voice activity detection
+
+# ============================================================================
+# Whisper Sub-Dependencies (safe — no torch dependency)
+#
+# These support openai-whisper which is installed separately with --no-deps.
+# numpy, tqdm, and numba are omitted because they are already satisfied by
+# the base requirements.txt or are already present as transitive deps.
+# ============================================================================
+more-itertools          # Required by openai-whisper
+tiktoken>=0.3.3         # Required by openai-whisper (BPE tokenizer)
+numba>=0.57.0           # Required by openai-whisper (word-level timestamps)
+
+# ============================================================================
+# Game Voice Chat / Push-to-Talk
+# ============================================================================
+pynput>=1.7.6           # Global hotkey listener for push-to-talk
+pycaw>=20230407         # Windows Audio Session API (process enumeration, volume)
+comtypes>=1.3.0         # COM interop for per-process WASAPI loopback (Windows)
+
+# ============================================================================
+# Torch-Dependent Packages — NOT installed by this file
+#
+# Install these AFTER PyTorch, using --no-deps for Whisper:
+#
+#   pip install openai-whisper --no-deps
+#   pip install coqui-tts                  (optional, better-quality neural TTS)
+#
+# openai-whisper declares torch as a dependency so --no-deps is required.
+# coqui-tts >= 0.27.4 no longer bundles torch, so it is safe to install
+# normally — but verify your torch version is not overwritten afterwards.
+#
+# Both packages also require ffmpeg to be installed on your system:
+#   Windows: winget install ffmpeg  (or download from https://ffmpeg.org)
+#   Linux:   sudo apt install ffmpeg
+# ============================================================================

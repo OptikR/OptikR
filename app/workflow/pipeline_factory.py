@@ -522,6 +522,12 @@ class PipelineFactory:
     ) -> list[PipelineStageProtocol]:
         """Assemble the audio stage list depending on ``source_mode``."""
 
+        # -- Echo canceller (shared between capture and TTS) ----------------
+        echo_canceller = self._create_echo_canceller(stage_cfg, source_mode)
+
+        # -- Push-to-talk (shared with capture stage) -----------------------
+        ptt = self._create_push_to_talk(stage_cfg)
+
         adapter_stage = AudioTextAdapterStage(
             source_lang=source_lang,
             target_lang=target_lang,
@@ -537,17 +543,30 @@ class PipelineFactory:
             tts_engine=tts_engine,
             config=stage_cfg,
             volume_ducker=volume_ducker,
+            echo_canceller=echo_canceller,
         )
 
         if source_mode == "youtube":
             yt_stage = self._create_youtube_stage(stage_cfg, source_lang)
             return [yt_stage, adapter_stage, translation_stage, tts_stage]
 
-        if source_mode == "system":
+        if source_mode == "process":
+            process_source = self._create_process_audio_source(stage_cfg)
+            capture = AudioCaptureStage(
+                audio_source=process_source, config=stage_cfg,
+                echo_canceller=echo_canceller, push_to_talk=ptt,
+            )
+        elif source_mode == "system":
             system_source = self._create_system_audio_source(stage_cfg)
-            capture = AudioCaptureStage(audio_source=system_source, config=stage_cfg)
+            capture = AudioCaptureStage(
+                audio_source=system_source, config=stage_cfg,
+                echo_canceller=echo_canceller, push_to_talk=ptt,
+            )
         else:
-            capture = AudioCaptureStage(audio_source=audio_source, config=stage_cfg)
+            capture = AudioCaptureStage(
+                audio_source=audio_source, config=stage_cfg,
+                echo_canceller=echo_canceller, push_to_talk=ptt,
+            )
 
         stt = SpeechToTextStage(stt_engine=stt_engine, config=stage_cfg)
         return [capture, stt, adapter_stage, translation_stage, tts_stage]
@@ -576,6 +595,95 @@ class PipelineFactory:
             device_index, input_volume * 100,
         )
         return source
+
+    def _create_process_audio_source(self, stage_cfg: dict[str, Any]) -> Any:
+        """Instantiate a ``ProcessAudioCapture`` for per-app WASAPI loopback."""
+        try:
+            from plugins.enhancers.audio_translation.process_audio_capture import (
+                ProcessAudioCapture,
+            )
+        except ImportError:
+            self.logger.error(
+                "ProcessAudioCapture import failed — "
+                "falling back to system loopback"
+            )
+            return self._create_system_audio_source(stage_cfg)
+
+        target_pid = stage_cfg.get("process_pid", None)
+        if target_pid is None:
+            self.logger.warning(
+                "Process mode selected but no process_pid provided — "
+                "falling back to system loopback"
+            )
+            return self._create_system_audio_source(stage_cfg)
+
+        input_volume = stage_cfg.get("input_volume", 100) / 100.0
+        loopback_device = stage_cfg.get("loopback_device", None)
+
+        source = ProcessAudioCapture(
+            target_pid=target_pid,
+            input_volume=input_volume,
+            loopback_device=loopback_device,
+        )
+        self.logger.info(
+            "ProcessAudioCapture created (pid=%s, volume=%.0f%%)",
+            target_pid, input_volume * 100,
+        )
+        return source
+
+    @staticmethod
+    def _create_echo_canceller(
+        stage_cfg: dict[str, Any], source_mode: str,
+    ) -> Any | None:
+        """Create an ``EchoCanceller`` when echo cancellation is enabled.
+
+        Echo cancellation is most important for system/process loopback
+        modes where TTS output gets recaptured.
+        """
+        if source_mode in ("microphone", "youtube"):
+            return None
+
+        ec_enabled = stage_cfg.get("echo_cancellation_enabled", True)
+        if not ec_enabled:
+            return None
+
+        try:
+            from plugins.enhancers.audio_translation.echo_canceller import (
+                EchoCanceller,
+            )
+        except ImportError:
+            logger.info(
+                "echo_canceller not available — echo cancellation disabled"
+            )
+            return None
+
+        mode = stage_cfg.get("echo_cancel_mode", "gate")
+        canceller = EchoCanceller(mode=mode)
+        logger.info("EchoCanceller created (mode=%s)", mode)
+        return canceller
+
+    @staticmethod
+    def _create_push_to_talk(stage_cfg: dict[str, Any]) -> Any | None:
+        """Create a ``PushToTalk`` instance when PTT is enabled."""
+        ptt_enabled = stage_cfg.get("ptt_enabled", False)
+        if not ptt_enabled:
+            return None
+
+        try:
+            from plugins.enhancers.audio_translation.push_to_talk import (
+                PushToTalk,
+            )
+        except ImportError:
+            logger.info(
+                "push_to_talk not available — PTT disabled"
+            )
+            return None
+
+        ptt_key = stage_cfg.get("ptt_key", "ctrl_l")
+        ptt = PushToTalk(key=ptt_key)
+        ptt.start()
+        logger.info("PushToTalk created (key=%s)", ptt_key)
+        return ptt
 
     def _create_youtube_stage(
         self, stage_cfg: dict[str, Any], source_lang: str,

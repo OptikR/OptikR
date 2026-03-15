@@ -1268,7 +1268,7 @@ class AudioTextAdapterStage:
 
         if self._bidirectional and detected != self._source_lang:
             source = detected
-            target = self._source_lang
+            target = self._target_lang  # translate to what user wants to hear
 
         block = {
             "text": transcribed,
@@ -1312,9 +1312,13 @@ class AudioCaptureStage:
         self,
         audio_source: Any = None,
         config: Any = None,
+        echo_canceller: Any = None,
+        push_to_talk: Any = None,
     ) -> None:
         self._audio_source = audio_source
         self._config: dict[str, Any] = config if isinstance(config, dict) else {}
+        self._echo_canceller = echo_canceller
+        self._push_to_talk = push_to_talk
 
         self._sample_rate: int = self._config.get("sample_rate", 16000)
         self._input_device: int | None = self._config.get("input_device", None)
@@ -1343,9 +1347,12 @@ class AudioCaptureStage:
             return None
 
         try:
-            import pyaudio  # type: ignore[import-untyped]
+            import pyaudiowpatch as pyaudio  # type: ignore[import-untyped]
         except ImportError:
-            return "pyaudio not installed (pip install pyaudio)"
+            try:
+                import pyaudio  # type: ignore[import-untyped]
+            except ImportError:
+                return "pyaudio not installed (pip install PyAudioWPatch)"
         try:
             import numpy  # noqa: F401
         except ImportError:
@@ -1397,7 +1404,10 @@ class AudioCaptureStage:
         """Non-blocking callback that applies volume scaling and VAD,
         then enqueues speech chunks (or *None* silence sentinels)."""
         import numpy as np
-        import pyaudio as _pa
+        try:
+            import pyaudiowpatch as _pa
+        except ImportError:
+            import pyaudio as _pa
 
         if status_flags:
             logger.debug("[AudioCaptureStage] stream status: %s", status_flags)
@@ -1442,8 +1452,27 @@ class AudioCaptureStage:
         # Injected audio_source path (backward compat / testing)
         if self._audio_source is not None:
             try:
+                # PTT gate: skip capture when PTT is enabled but not pressed
+                if (self._push_to_talk is not None
+                        and not self._push_to_talk.is_active):
+                    time.sleep(0.05)
+                    elapsed = (time.perf_counter() - start) * 1000
+                    return StageResult(
+                        success=True,
+                        data={"audio_buffer": None},
+                        duration_ms=elapsed,
+                    )
+
                 frames = input_data.get("frames", 1024)
                 audio_buffer = self._audio_source.read(frames)
+
+                # Echo cancellation: filter out TTS echo from loopback
+                if (self._echo_canceller is not None
+                        and audio_buffer is not None
+                        and hasattr(audio_buffer, '__len__')
+                        and len(audio_buffer) > 0):
+                    audio_buffer = self._echo_canceller.filter(audio_buffer)
+
                 elapsed = (time.perf_counter() - start) * 1000
                 return StageResult(
                     success=True,
@@ -1472,6 +1501,18 @@ class AudioCaptureStage:
         last_speech = time.time()
 
         while not self._stop_event.is_set():
+            # PTT gate: only capture while the key is held
+            if (self._push_to_talk is not None
+                    and not self._push_to_talk.is_active):
+                time.sleep(0.02)
+                # Drain the queue so stale audio doesn't accumulate
+                while not self._audio_queue.empty():
+                    try:
+                        self._audio_queue.get_nowait()
+                    except _queue.Empty:
+                        break
+                continue
+
             try:
                 chunk = self._audio_queue.get(timeout=0.05)
             except _queue.Empty:
@@ -1533,6 +1574,11 @@ class AudioCaptureStage:
         self._terminate_pyaudio()
         if self._audio_source is not None and hasattr(self._audio_source, "cleanup"):
             self._audio_source.cleanup()
+        if self._push_to_talk is not None and hasattr(self._push_to_talk, "stop"):
+            try:
+                self._push_to_talk.stop()
+            except Exception:
+                pass
         self._initialized = False
 
 
@@ -1744,6 +1790,7 @@ class TTSStage:
         tts_engine: Any = None,
         config: Any = None,
         volume_ducker: Any = None,
+        echo_canceller: Any = None,
     ) -> None:
         self._tts_engine = tts_engine
         self._config: dict[str, Any] = config if isinstance(config, dict) else {}
@@ -1756,6 +1803,7 @@ class TTSStage:
         self._duck_enabled: bool = self._config.get("duck_enabled", False)
         self._duck_level: int = self._config.get("duck_level", 20)
         self._volume_ducker = volume_ducker
+        self._echo_canceller = echo_canceller
 
         self._tts_type: str | None = None
         self._voice_reference_file: str | None = None
@@ -1903,8 +1951,7 @@ class TTSStage:
 
     def _speak(self, text: str, language: str) -> bytes | None:
         """Generate speech from *text*.  Returns raw audio bytes when a
-        file-based backend (Coqui) is used, or *None* for pyttsx3
-        (which plays audio directly)."""
+        file-based backend (Coqui / pyttsx3-via-WAV) is used."""
         engine = (
             self._tts_engine
             if self._tts_engine is not None
@@ -1913,15 +1960,11 @@ class TTSStage:
         if engine is None:
             raise RuntimeError("No TTS engine initialised")
 
-        # Injected engine with simple speak() API
         if self._tts_engine is not None:
             return self._tts_engine.speak(text)
 
         if self._tts_type == "pyttsx3":
-            with self._tts_lock:
-                engine.say(text)
-                engine.runAndWait()
-            return None
+            return self._speak_pyttsx3(engine, text)
 
         # Coqui-based engines write to a temp wav then play it
         from app.utils.path_utils import ensure_dir
@@ -1948,6 +1991,56 @@ class TTSStage:
             except OSError:
                 pass
 
+    def _speak_pyttsx3(self, engine: Any, text: str) -> bytes | None:
+        """Render pyttsx3 speech to a temp WAV and play via PyAudio.
+
+        This allows pyttsx3 output to be routed to a specific device
+        (e.g. a virtual audio cable) instead of always going to the
+        system default.  Falls back to direct ``engine.say()`` if
+        ``save_to_file()`` fails.
+        """
+        from app.utils.path_utils import ensure_dir
+
+        processing_dir = ensure_dir("temp_processing")
+        tmp_path = str(processing_dir / f"tts_pyttsx3_{threading.get_ident()}.wav")
+
+        try:
+            with self._tts_lock:
+                engine.save_to_file(text, tmp_path)
+                engine.runAndWait()
+
+            if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
+                try:
+                    return self._play_audio_file(tmp_path)
+                finally:
+                    try:
+                        os.unlink(tmp_path)
+                    except OSError:
+                        pass
+
+            logger.warning(
+                "[TTSStage] pyttsx3 save_to_file produced no output, "
+                "falling back to direct playback (default device only)")
+        except Exception as exc:
+            logger.warning(
+                "[TTSStage] pyttsx3 save_to_file failed (%s), "
+                "falling back to direct playback (default device only)", exc)
+
+        # Clean up temp file from failed save attempt
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+        # Fallback: direct playback (always goes to system default)
+        try:
+            with self._tts_lock:
+                engine.say(text)
+                engine.runAndWait()
+        except Exception as exc:
+            logger.error("[TTSStage] pyttsx3 direct playback failed: %s", exc)
+        return None
+
     def _play_audio_file(self, audio_file: str) -> bytes | None:
         """Play a wav file to the configured output device.  Returns the
         raw PCM bytes so callers can forward them if needed."""
@@ -1971,9 +2064,17 @@ class TTSStage:
 
         raw_bytes: bytes = audio_data.tobytes()
 
+        # Mark TTS playback window for echo cancellation
+        play_start = time.monotonic()
+        duration_seconds = len(audio_data) / sample_rate
+        tts_waveform = audio_data if audio_data.dtype == np.int16 else None
+
         try:
             if self._pyaudio_instance is None:
-                import pyaudio  # type: ignore[import-untyped]
+                try:
+                    import pyaudiowpatch as pyaudio  # type: ignore[import-untyped]
+                except ImportError:
+                    import pyaudio  # type: ignore[import-untyped]
                 self._pyaudio_instance = pyaudio.PyAudio()
 
             if self._output_stream is not None and self._output_stream_rate != sample_rate:
@@ -1997,6 +2098,16 @@ class TTSStage:
             self._output_stream.write(raw_bytes)
         except Exception as exc:
             logger.error("[TTSStage] Audio playback error: %s", exc)
+
+        if self._echo_canceller is not None:
+            try:
+                self._echo_canceller.mark_playing(
+                    play_start, duration_seconds, tts_waveform,
+                )
+            except Exception as exc:
+                logger.debug(
+                    "[TTSStage] Echo canceller mark_playing failed: %s", exc,
+                )
 
         return raw_bytes
 

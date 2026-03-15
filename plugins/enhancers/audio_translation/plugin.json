@@ -82,8 +82,13 @@
     },
     "silence_threshold": {
       "type": "float",
-      "default": 0.3,
-      "description": "Seconds of silence before processing speech (lower = faster, less accurate)"
+      "default": 0.8,
+      "description": "Seconds of silence before processing speech (higher = record longer, fewer false cuts)"
+    },
+    "max_buffer_duration": {
+      "type": "float",
+      "default": 30.0,
+      "description": "Maximum recording duration in seconds before sending (records as long as you talk, up to this limit)"
     },
     "min_audio_length": {
       "type": "float",

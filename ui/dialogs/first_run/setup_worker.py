@@ -100,6 +100,34 @@ class SetupWorker(QThread):
                 self.all_completed.emit(False)
                 return
 
+            # Step 2b: Audio translation dependencies (if enabled)
+            if self.wizard.audio_enabled:
+                self.progress_updated.emit(30.0, "Installing audio translation dependencies...")
+                try:
+                    success = self.wizard.install_audio_dependencies(
+                        progress_range=(30.0, 33.0),
+                    )
+                    if success:
+                        self.step_completed.emit(
+                            True, "Audio Dependencies",
+                            "Audio translation dependencies installed "
+                            "(openai-whisper with --no-deps to protect PyTorch)",
+                        )
+                    else:
+                        self.step_completed.emit(
+                            False, "Audio Dependencies",
+                            "Some audio dependencies failed to install "
+                            "(can be installed later from Settings)",
+                        )
+                except Exception as e:
+                    self.step_completed.emit(
+                        False, "Audio Dependencies",
+                        f"Audio dependency install error: {e}",
+                    )
+                if self.should_stop:
+                    self.all_completed.emit(False)
+                    return
+
             # Step 3: Download selected components (33% - 65%)
             components = self.wizard.selected_components
             if not components:

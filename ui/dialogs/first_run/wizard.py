@@ -71,6 +71,7 @@ class FirstRunWizard(QDialog):
         self.selected_mode = "cpu"
         self.selected_gpu_vendor = None
         self.tesseract_enabled = False
+        self.audio_enabled = False
         self.selected_components: list[str] = []
 
         self.setWindowTitle(tr("optikr_first_run_setup_wizard"))
@@ -122,6 +123,7 @@ class FirstRunWizard(QDialog):
         self.amd_radio.setText(tr("wizard_amd_rocm"))
         self.auto_detect_radio.setText(tr("wizard_auto_detect"))
         self.tesseract_checkbox.setText(tr("wizard_enable_tesseract"))
+        self.audio_checkbox.setText(tr("wizard_enable_audio"))
         self.next_btn.setText(tr("wizard_next"))
         # Group box titles
         self.mode_group_box.setTitle(tr("wizard_compute_mode"))
@@ -331,6 +333,28 @@ class FirstRunWizard(QDialog):
         except Exception:
             pass
 
+        # --- Audio Translation option ---
+        separator = QLabel("")
+        separator.setFixedHeight(4)
+        ocr_layout.addWidget(separator)
+
+        self.audio_checkbox = QCheckBox(tr("wizard_enable_audio"))
+        self.audio_checkbox.setChecked(False)
+        ocr_layout.addWidget(self.audio_checkbox)
+
+        audio_description = QLabel(tr("wizard_audio_desc"))
+        audio_description.setWordWrap(True)
+        audio_description.setStyleSheet(
+            "color: #666; font-size: 9pt; margin-left: 20px;")
+        ocr_layout.addWidget(audio_description)
+
+        self.audio_deps_label = QLabel(tr("wizard_audio_deps_note"))
+        self.audio_deps_label.setWordWrap(True)
+        self.audio_deps_label.setStyleSheet(
+            "color: #2196F3; font-size: 9pt; margin-left: 20px; "
+            "font-style: italic;")
+        ocr_layout.addWidget(self.audio_deps_label)
+
         layout.addWidget(ocr_group)
 
         layout.addStretch()
@@ -370,6 +394,7 @@ class FirstRunWizard(QDialog):
             self.selected_gpu_vendor = None
 
         self.tesseract_enabled = self.tesseract_checkbox.isChecked()
+        self.audio_enabled = self.audio_checkbox.isChecked()
 
         # Resolve auto-detect GPU vendor before proceeding
         if self.selected_gpu_vendor == "auto":
@@ -547,6 +572,7 @@ class FirstRunWizard(QDialog):
     _NODEPS_PACKAGES: dict[str, list[str]] = {
         "mokuro": ["fire", "loguru", "natsort", "pyclipper", "shapely", "torchsummary", "yattag"],
         "accelerate": ["pyyaml", "safetensors"],
+        "openai-whisper": ["more-itertools", "tiktoken", "numba"],
     }
 
     @staticmethod
@@ -1097,6 +1123,50 @@ class FirstRunWizard(QDialog):
             logger.error("Failed to ensure OCR dependencies for %s: %s", engine_name, e, exc_info=True)
             return False
 
+    def install_audio_dependencies(self, progress_range: tuple = None) -> bool:
+        """Install audio translation dependencies from requirements-audio.txt.
+
+        Installs safe packages via the requirements file, then installs
+        openai-whisper with ``--no-deps`` to protect the existing torch
+        build (CUDA or CPU).
+
+        Returns:
+            True if all audio dependencies installed successfully.
+        """
+        p_start, p_end = progress_range or (0, 0)
+        p_mid = p_start + (p_end - p_start) * 0.6
+
+        self._log("Installing audio translation dependencies...")
+
+        # Step 1: Install safe packages from requirements-audio.txt
+        req_file = "requirements-audio.txt"
+        if not Path(req_file).exists():
+            self._log(f"WARNING: {req_file} not found — skipping safe audio deps")
+        else:
+            success = self._install_requirements_file(
+                req_file, progress_range=(p_start, p_mid),
+            )
+            if not success:
+                self._log(f"WARNING: Some audio deps from {req_file} failed to install")
+
+        # Step 2: Install openai-whisper with --no-deps (protects CUDA torch)
+        self._log("Installing openai-whisper (with --no-deps to protect PyTorch)...")
+        whisper_packages = ["openai-whisper>=20231117"]
+        success = self._install_dependencies(
+            whisper_packages, progress_range=(p_mid, p_end),
+        )
+
+        if success:
+            self._log("Audio translation dependencies installed successfully")
+        else:
+            self._log(
+                "WARNING: openai-whisper installation failed — "
+                "you can install it manually later: "
+                "pip install openai-whisper --no-deps"
+            )
+
+        return success
+
     def configure_defaults(self) -> bool:
         """
         Set up default configuration.
@@ -1136,6 +1206,13 @@ class FirstRunWizard(QDialog):
             if _VISION_IDS & set(self.selected_components):
                 self.config.set_setting('pipeline.mode', 'vision')
                 self.config.set_setting('vision.enabled', True)
+
+            # Store audio translation enabled state
+            if self.audio_enabled:
+                self.config.set_setting(
+                    'plugins.audio_translation.enabled', True)
+                self.config.set_setting(
+                    'plugins.audio_translation.auto_detect_language', True)
 
             # Apply hardware-based feature gating
             from app.utils.hardware_capability_gate import get_hardware_gate
