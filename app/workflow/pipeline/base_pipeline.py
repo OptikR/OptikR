@@ -172,6 +172,8 @@ class BasePipeline(ResourceOwner):
         with self._stats_lock:
             self._stats = PipelineStats()
         self._overlay_positions = []
+        self._consecutive_skips = 0
+        self._reset_plugins()
 
         self._loop_thread = threading.Thread(
             target=self._frame_loop,
@@ -215,6 +217,23 @@ class BasePipeline(ResourceOwner):
         self._flush_state_callback()
 
         logger.info("BasePipeline stopped")
+
+    def _reset_plugins(self) -> None:
+        """Reset all stage plugins so stale state doesn't carry across runs."""
+        from .plugin_stage import PluginAwareStage
+
+        for stage in self._stages:
+            if not isinstance(stage, PluginAwareStage):
+                continue
+            for plugin in stage.pre_plugins + stage.post_plugins:
+                if hasattr(plugin, "reset"):
+                    try:
+                        plugin.reset()
+                    except Exception as exc:
+                        logger.debug(
+                            "Plugin %s reset failed: %s",
+                            type(plugin).__name__, exc,
+                        )
 
     def pause(self) -> None:
         """Pause the frame loop.  The loop thread stays alive but sleeps."""
