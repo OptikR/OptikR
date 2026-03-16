@@ -1,4 +1,4 @@
-# OptikR - Real-Time Screen Translation System
+# OptikR - Real-Time Screen Translation System (Vibecoded)
 
 <div align="center">
 
