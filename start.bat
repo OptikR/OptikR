@@ -17,15 +17,12 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
-:: 2. Create Virtual Environment if it doesn't exist
+:: 2. Create Virtual Environment (Supports 3.12 > 3.11 > 3.10)
+py -3.12 -V >nul 2>&1 && set "P=py -3.12" || py -3.11 -V >nul 2>&1 && set "P=py -3.11" || py -3.10 -V >nul 2>&1 && set "P=py -3.10" || (echo [ERROR] Python 3.10-3.12 required! & exit /b)
+
 if not exist %VENV_DIR% (
-    echo [INFO] Creating virtual environment in %VENV_DIR%...
-    py -3.12 -m venv %VENV_DIR%
-    if %errorlevel% neq 0 (
-        echo [ERROR] Failed to create virtual environment.
-        pause
-        exit /b
-    )
+    echo [INFO] Creating virtual environment using %P%...
+    %P% -m venv %VENV_DIR% || (echo [ERROR] Failed to create venv. & pause & exit /b)
 )
 
 :: 3. Activate Virtual Environment
