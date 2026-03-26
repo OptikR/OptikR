@@ -1,0 +1,6 @@
+# ============================================================================
+# Windows-specific
+# ============================================================================
+pywin32>=306
+winocr>=0.0.6  # Optional: Windows OCR (wraps Windows.Media.Ocr / DirectML)
+bettercam>=1.0.0  # GPU-accelerated capture (AMD/NVIDIA, Desktop Duplication API)

@@ -24,7 +24,6 @@ easyocr>=1.7.0
 paddleocr>=2.7.0
 manga-ocr>=0.1.11
 pytesseract>=0.3.10
-winocr>=0.0.6  # Optional: Windows OCR (wraps Windows.Media.Ocr / DirectML)
 rapidocr-onnxruntime>=1.3.0  # Optional: Lightweight PaddleOCR via ONNX Runtime
 python-doctr[torch]>=0.8.0  # Optional: Transformer-based OCR (Mindee DocTR)
 surya-ocr>=0.4.0,<=0.13.1  # Optional: Vision-transformer OCR (90+ languages) — pinned: 0.14+ requires torch>=2.7 (no CUDA 12.4 wheels)
@@ -67,7 +66,6 @@ scikit-image>=0.21.0
 # ============================================================================
 # Screen Capture
 # ============================================================================
-bettercam>=1.0.0  # GPU-accelerated capture (AMD/NVIDIA, Desktop Duplication API)
 mss>=9.0.1
 
 # ============================================================================
@@ -92,11 +90,6 @@ urllib3>=2.0.0  # Required by requests
 # Security
 # ============================================================================
 cryptography>=42.0.0
-
-# ============================================================================
-# Windows-specific
-# ============================================================================
-pywin32>=306
 
 # ============================================================================
 # Translation Services

@@ -1,0 +1,12 @@
+.venv
+.venv_
+
+__pycache__/
+
+system_data/logs
+system_data/ai_models/model_registry.json
+system_data/cache
+
+user_data/config
+
+
