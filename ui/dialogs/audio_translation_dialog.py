@@ -8,7 +8,10 @@ Persistent control bar at bottom with status, stats, and Start/Pause/Stop/Close.
 Uses ``PipelineFactory.create("audio")`` and ``BasePipeline`` lifecycle.
 """
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
@@ -19,8 +22,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QFont
 from app.localization import TranslatableMixin, tr
-from ui.widgets.subtitle_overlay import SubtitleOverlay
-from ui.widgets.subtitle_window import SubtitleWindow
+
+if TYPE_CHECKING:
+    from ui.widgets.subtitle_overlay import SubtitleOverlay
+    from ui.widgets.subtitle_window import SubtitleWindow
 
 logger = logging.getLogger(__name__)
 
@@ -940,6 +945,8 @@ class AudioTranslationDialog(TranslatableMixin, QDialog):
 
     def _ensure_subtitle_overlay(self):
         if self._subtitle_overlay is None:
+            from ui.widgets.subtitle_overlay import SubtitleOverlay
+
             self._subtitle_overlay = SubtitleOverlay(
                 font_size=self.subtitle_font_slider.value(),
                 bilingual=self.bilingual_overlay_check.isChecked(),
@@ -954,6 +961,8 @@ class AudioTranslationDialog(TranslatableMixin, QDialog):
 
     def _ensure_subtitle_window(self):
         if self._subtitle_window is None:
+            from ui.widgets.subtitle_window import SubtitleWindow
+
             self._subtitle_window = SubtitleWindow(
                 font_size=self.subtitle_font_slider.value(),
                 bilingual=self.bilingual_overlay_check.isChecked(),
