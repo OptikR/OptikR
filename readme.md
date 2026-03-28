@@ -94,7 +94,7 @@ OptikR provides a powerful real-time screen translation and OCR system. Whether 
 
 ### Prerequisites
 
-1. **Python 3.10+** — Download from https://www.python.org/downloads/
+1. **Python 3.10 - 3-12** — Download from https://www.python.org/downloads/release/python-31210/
    - During installation, check **"Add Python to PATH"**
 2. **CUDA Toolkit (optional, recommended for NVIDIA GPUs)** — Download from https://developer.nvidia.com/cuda-downloads
    - Install CUDA 12.x, then **restart your computer**
@@ -396,7 +396,7 @@ OptikR/
 - **RAM**: 8 GB
 - **GPU**: NVIDIA GPU with CUDA support
 - **Storage**: 5 GB free (for AI models)
-- **Python**: 3.10, 3.11 or 3.11
+- **Python**: 3.10, 3.11 or 3.12
 
 ---
 
